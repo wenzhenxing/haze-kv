@@ -13,7 +13,7 @@ import "runtime"
 import "math/rand"
 import "os"
 
-//import "sync"
+import "sync"
 import "strconv"
 
 //import "strings"
@@ -183,6 +183,7 @@ func TestBasicFail(t *testing.T) {
 }
 */
 
+/*
 func TestAtMostOnce(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -236,6 +237,7 @@ func TestAtMostOnce(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
+*/
 
 /*
 // Put right after a backup dies.
@@ -328,6 +330,7 @@ func TestFailPut(t *testing.T) {
 }
 */
 
+/*
 // do a bunch of concurrent Put()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Put()s in the same order.
@@ -426,6 +429,7 @@ func TestConcurrentSame(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
+*/
 
 /*
 // check that all known appends are present in a value,
@@ -451,9 +455,7 @@ func checkAppends(t *testing.T, v string, counts []int) {
 		}
 	}
 }
-*/
 
-/*
 // do a bunch of concurrent Append()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Append()s in the same order.
@@ -464,7 +466,7 @@ func TestConcurrentSameAppend(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("server1", vshost)
 
 	fmt.Printf("Test: Concurrent Append()s to the same key ...\n")
 
@@ -491,7 +493,7 @@ func TestConcurrentSameAppend(t *testing.T) {
 	ff := func(i int, ch chan int) {
 		ret := -1
 		defer func() { ch <- ret }()
-		ck := MakeClerk(vshost, "")
+		ck := MakeClerk(vshost, "client"+strconv.Itoa(i))
 		n := 0
 		for n < 50 {
 			v := "x " + strconv.Itoa(i) + " " + strconv.Itoa(n) + " y"
@@ -519,7 +521,7 @@ func TestConcurrentSameAppend(t *testing.T) {
 		counts = append(counts, n)
 	}
 
-	ck := MakeClerk(vshost, "")
+	ck := MakeClerk(vshost, "client99")
 
 	// check that primary's copy of the value has all
 	// the Append()s.
@@ -573,7 +575,7 @@ func TestConcurrentSameUnreliable(t *testing.T) {
     vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("S1", vshost)
 
 	fmt.Printf("Test: Concurrent Put()s to the same key; unreliable ...\n")
 
@@ -596,7 +598,7 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 	time.Sleep(viewservice.PingInterval * viewservice.DeadPings)
 
 	{
-		ck := MakeClerk(vshost, "")
+		ck := MakeClerk(vshost, "C1")
 		ck.Put("0", "x")
 		ck.Put("1", "x")
 	}
@@ -612,7 +614,7 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 		go func(i int, ch chan bool) {
 			ok := false
 			defer func() { ch <- ok }()
-			ck := MakeClerk(vshost, "")
+			ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 			rr := rand.New(rand.NewSource(int64(os.Getpid() + i)))
 			for atomic.LoadInt32(&done) == 0 {
 				k := strconv.Itoa(rr.Int() % nkeys)
@@ -681,7 +683,6 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 }
 */
 
-/*
 // constant put/get while crashing and restarting servers
 func TestRepeatedCrash(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -690,7 +691,7 @@ func TestRepeatedCrash(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("S1", vshost)
 
 	fmt.Printf("Test: Repeated failures/restarts ...\n")
 
@@ -742,7 +743,7 @@ func TestRepeatedCrash(t *testing.T) {
 		go func(i int) {
 			ok := false
 			defer func() { cha[i] <- ok }()
-			ck := MakeClerk(vshost, "")
+			ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 			data := map[string]string{}
 			rr := rand.New(rand.NewSource(int64(os.Getpid() + i)))
 			for atomic.LoadInt32(&done) == 0 {
@@ -777,7 +778,7 @@ func TestRepeatedCrash(t *testing.T) {
 		}
 	}
 
-	ck := MakeClerk(vshost, "")
+	ck := MakeClerk(vshost, "C2")
 	ck.Put("aaa", "bbb")
 	if v := ck.Get("aaa"); v != "bbb" {
 		t.Fatalf("final Put/Get failed")
@@ -794,7 +795,7 @@ func TestRepeatedCrash(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
+
 /*
 func TestRepeatedCrashUnreliable(t *testing.T) {
 	runtime.GOMAXPROCS(4)

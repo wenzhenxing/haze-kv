@@ -83,15 +83,25 @@ func (ck *Clerk) Get(key string) string {
 	ck.rpc_id++
 	args := &GetArgs{key, ck.me, ck.rpc_id}
 	var reply GetReply
-	ck.primary = ck.vs.Primary()
-	log.Printf("[client %s] Get(%s) to [%v] %v times\n", ck.me, key, ck.primary, args.Rpc_id)
-	ok := call(ck.primary, "PBServer.Get", args, &reply)
+	ok := false
 	for !ok {
-		time.Sleep(viewservice.PingInterval)
 		ck.primary = ck.vs.Primary()
 		log.Printf("[client %s] Get(%s) to [%v] %v times\n", ck.me, key, ck.primary, args.Rpc_id)
-		ok = call(ck.primary, "PBServer.Get", args, &reply)
+		rpc_ok := call(ck.primary, "PBServer.Get", args, &reply)
+		if !rpc_ok {
+			time.Sleep(viewservice.PingInterval)
+			continue
+		}
+		switch reply.Err {
+		case OK:
+			ok = true
+		case ErrDuplicated:
+			ok = true
+		case ErrCopyNotFinished:
+		default:
+		}
 	}
+	log.Printf("[client %s] Get(%s)-%v to [%v] SUCCESS\n", ck.me, key, reply.Value, ck.primary)
 
 	return reply.Value
 }
@@ -106,13 +116,22 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	ck.rpc_id++
 	args := &PutAppendArgs{key, value, op, ck.me, ck.rpc_id}
 	var reply PutAppendReply
-	log.Printf("[client %s] PutAppend(%v-%v) to [%v] %v times\n", ck.me, key, value, ck.primary, args.Rpc_id)
-	ok := call(ck.primary, "PBServer.PutAppend", args, &reply)
+	ok := false
 	for !ok {
-		time.Sleep(viewservice.PingInterval)
 		ck.primary = ck.vs.Primary()
 		log.Printf("[client %s] PutAppend(%v-%v) to [%v] %v times\n", ck.me, key, value, ck.primary, args.Rpc_id)
-		ok = call(ck.primary, "PBServer.PutAppend", args, &reply)
+		rpc_ok := call(ck.primary, "PBServer.PutAppend", args, &reply)
+		if !rpc_ok {
+			time.Sleep(viewservice.PingInterval)
+			continue
+		}
+		switch reply.Err {
+		case OK:
+			ok = true
+		case ErrDuplicated:
+		case ErrCopyNotFinished:
+		default:
+		}
 	}
 	log.Printf("[client %s] PutAppend(%v-%v) to [%v] SECUSS\n", ck.me, key, value, ck.primary)
 }

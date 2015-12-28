@@ -36,12 +36,15 @@ func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 
-	if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
-		reply.Err = ErrDuplicated
-		log.Printf("[DUPLICATED][server %v] respons Get(%v) from %v server_rpc_id:%v, client_rpc_id:%v",
-			pb.me, args.Key, args.From, pb.last_rpc[args.From], args.Rpc_id)
-		return nil
-	}
+	/*
+			if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
+				reply.Err = OK
+		    reply.Value = pb.data[args.Key]
+				log.Printf("[DUPLICATED][server %v] respons Get(%v) from %v server_rpc_id:%v, client_rpc_id:%v",
+					pb.me, args.Key, args.From, pb.last_rpc[args.From], args.Rpc_id)
+				return nil
+			}
+	*/
 	if !pb.copyfinished {
 		reply.Err = ErrCopyNotFinished
 		return nil
@@ -76,7 +79,6 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 		ok := call(pb.myView.Backup, "PBServer.PutAppend", args, &reply_backup)
 		if !ok {
 			log.Printf("[ERROR] [%v] sync to backup [%v]", pb.me, pb.myView.Backup)
-			reply.Err = ErrDuplicated
 			return errors.New("Sync error")
 		}
 	}
