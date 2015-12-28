@@ -1,0 +1,11 @@
+*.swp
+*.bak
+*.taghl
+tags
+*.out
+*_test
+*.txt
+src/main/mrtmp.*
+*~
+*.o
+/bin
