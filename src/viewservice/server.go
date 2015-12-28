@@ -60,7 +60,6 @@ func (vs *ViewServer) Ping(args *PingArgs, reply *PingReply) error {
 //
 func (vs *ViewServer) Get(args *GetArgs, reply *GetReply) error {
 	// Your code here.
-	log.Printf("ViewServer Get")
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 

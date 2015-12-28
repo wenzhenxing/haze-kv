@@ -49,7 +49,7 @@ func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
 	reply.Value = pb.data[args.Key]
 	reply.Err = OK
 	pb.last_rpc[args.From] = args.Rpc_id
-	log.Printf("[server %v] respons Get(%v) from %v", pb.me, args.Key, args.From)
+	log.Printf("[server %v] respons Get(%v)-%v from %v", pb.me, args.Key, reply.Value, args.From)
 
 	return nil
 }
@@ -66,9 +66,9 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 		return nil
 	}
 	/*
-		 * Sync to the backup.Primary should forward the request to
-	   * Backup through RPC. And the Primary no need to ensure sync
-	   * success, just throw the error to the client.
+			 * Sync to the backup.Primary should forward the request to
+		   * Backup through RPC. And the Primary no need to ensure sync
+		   * success, just throw the error to the client.
 	*/
 	if pb.myView.Backup != "" && pb.myView.Backup != pb.me {
 		log.Printf("[Sync] [%v] sync to backup [%v]", pb.me, pb.myView.Backup)

@@ -10,14 +10,14 @@ import "time"
 import "log"
 import "runtime"
 
-//import "math/rand"
+import "math/rand"
 import "os"
 
 //import "sync"
 import "strconv"
 
 //import "strings"
-//import "sync/atomic"
+import "sync/atomic"
 
 func check(ck *Clerk, key string, value string) {
 	v := ck.Get(key)
@@ -183,7 +183,6 @@ func TestBasicFail(t *testing.T) {
 }
 */
 
-/*
 func TestAtMostOnce(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -237,8 +236,8 @@ func TestAtMostOnce(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
+/*
 // Put right after a backup dies.
 func TestFailPut(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -327,8 +326,8 @@ func TestFailPut(t *testing.T) {
 	time.Sleep(viewservice.PingInterval * 2)
 	vs.Kill()
 }
+*/
 
-/*
 // do a bunch of concurrent Put()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Put()s in the same order.
@@ -339,7 +338,7 @@ func TestConcurrentSame(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("server1", vshost)
 
 	fmt.Printf("Test: Concurrent Put()s to the same key ...\n")
 
@@ -367,7 +366,7 @@ func TestConcurrentSame(t *testing.T) {
 	const nkeys = 2
 	for xi := 0; xi < nclients; xi++ {
 		go func(i int) {
-			ck := MakeClerk(vshost, "")
+			ck := MakeClerk(vshost, "client1")
 			rr := rand.New(rand.NewSource(int64(os.Getpid() + i)))
 			for atomic.LoadInt32(&done) == 0 {
 				k := strconv.Itoa(rr.Int() % nkeys)
@@ -382,7 +381,7 @@ func TestConcurrentSame(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// read from primary
-	ck := MakeClerk(vshost, "")
+	ck := MakeClerk(vshost, "client2")
 	var vals [nkeys]string
 	for i := 0; i < nkeys; i++ {
 		vals[i] = ck.Get(strconv.Itoa(i))
@@ -427,7 +426,6 @@ func TestConcurrentSame(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
 /*
 // check that all known appends are present in a value,
