@@ -9,6 +9,14 @@ const (
 	ErrSync            = "Sync to buckup error"
 )
 
+/*
+ * Used to identifiy the put request kind
+ */
+const (
+  PUT_NORMAL = iota
+  PUT_SYNC
+)
+
 type Err string
 
 // Put or Append
@@ -19,6 +27,7 @@ type PutAppendArgs struct {
 	Op     string
 	From   string
 	Rpc_id int //the kv-server filter all Num>0
+  Kind int
 
 	// Field names must start with capital letters,
 	// otherwise RPC will break.

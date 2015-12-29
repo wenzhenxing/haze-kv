@@ -98,6 +98,9 @@ func (ck *Clerk) Get(key string) string {
 		case ErrDuplicated:
 			ok = true
 		case ErrCopyNotFinished:
+      log.Printf("[ErrCopyNotFinished][client %v] Primary %v not copy finished\n", ck.me, ck.primary)
+    case ErrWrongServer:
+      log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n", ck.me, ck.primary)
 		default:
 		}
 	}
@@ -114,7 +117,7 @@ func (ck *Clerk) Get(key string) string {
 func (ck *Clerk) PutAppend(key string, value string, op string) {
 	// Your code here.
 	ck.rpc_id++
-	args := &PutAppendArgs{key, value, op, ck.me, ck.rpc_id}
+	args := &PutAppendArgs{key, value, op, ck.me, ck.rpc_id, PUT_NORMAL}
 	var reply PutAppendReply
 	ok := false
 	for !ok {
@@ -131,6 +134,8 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		case ErrDuplicated:
 			ok = true
 		case ErrCopyNotFinished:
+    case ErrWrongServer:
+      log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n",ck.me, ck.primary)
 		case ErrSync:
 		default:
 		}

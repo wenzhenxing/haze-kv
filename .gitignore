@@ -4,8 +4,9 @@
 tags
 *.out
 *_test
-*.txt
+.env
 src/main/mrtmp.*
+pkg/
 *~
 *.o
 /bin
