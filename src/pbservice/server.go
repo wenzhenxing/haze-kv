@@ -29,6 +29,7 @@ type PBServer struct {
 	last_rpc     map[string]int
 	myView       viewservice.View
 	copyfinished bool
+	rpc_id       int //for rpc copy
 }
 
 func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
@@ -69,16 +70,18 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 		return nil
 	}
 	/*
-			 * Sync to the backup.Primary should forward the request to
-		   * Backup through RPC. And the Primary no need to ensure sync
-		   * success, just throw the error to the client.
-	*/
-	if pb.myView.Backup != "" && pb.myView.Backup != pb.me {
+	 * Sync to the backup.Primary should forward the request to
+	 * Backup through RPC. And the Primary no need to ensure sync
+	 * success, just throw the error to the client.
+	 */
+	if pb.myView.Backup != "" && pb.myView.Backup != pb.me && pb.myView.Primary == pb.me {
+		//if Primary != pb.me, it may dead lock
 		log.Printf("[Sync] [%v] sync to backup [%v]", pb.me, pb.myView.Backup)
 		var reply_backup PutAppendReply
 		ok := call(pb.myView.Backup, "PBServer.PutAppend", args, &reply_backup)
 		if !ok {
 			log.Printf("[ERROR] [%v] sync to backup [%v]", pb.me, pb.myView.Backup)
+			reply.Err = ErrSync
 			return errors.New("Sync error")
 		}
 	}
@@ -102,18 +105,28 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 func (pb *PBServer) Copy(args *CopyArgs, reply *CopyReply) error {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
+	//filter the duplicated request
+	if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
+		reply.Err = ErrDuplicated
+		log.Printf("[DUPLICATED][server %v] Copy request duplicated primary_rpc_id:%v, backup_rpc_id:%v",
+			pb.me, args.Rpc_id, pb.last_rpc[args.From])
+		return nil
+	}
 
 	//check wheather match viewserver
 	if pb.me != pb.myView.Backup {
-		return errors.New("Not current Backup!")
+		reply.Err = ErrWrongServer
+		return nil
 	}
-	log.Printf("[PBServer %v] recieve data from [%v]", pb.me, args.From)
 	for k, v := range args.Data {
 		pb.data[k] = v
 	}
 	for k, v := range args.Last_rpc {
 		pb.last_rpc[k] = v
 	}
+	reply.Err = OK
+	log.Printf("[server %v] recieve data from [%v] SUCCESS", pb.me, args.From)
+	pb.last_rpc[args.From] = args.Rpc_id
 	return nil
 }
 
@@ -136,19 +149,29 @@ func (pb *PBServer) tick() {
 		view.Backup != "" && view.Backup != pb.myView.Backup)
 	pb.myView = view
 	if flag {
-		log.Printf("[PBServer %v] Backup mismatch, send data to [%v]", pb.me, pb.myView.Backup)
 		pb.copyfinished = false
 		go func() {
-			args := &CopyArgs{pb.data, pb.me, pb.last_rpc}
+			pb.rpc_id++
+			args := &CopyArgs{pb.data, pb.me, pb.last_rpc, pb.rpc_id}
 			var reply CopyReply
-			for {
-				ok := call(pb.myView.Backup, "PBServer.Copy", args, &reply)
-				if !ok {
+			ok := false
+			for !ok {
+				log.Printf("[server %v] Backup mismatch, send data to [%v] %v times", pb.me, pb.myView.Backup, args.Rpc_id)
+				rpc_ok := call(pb.myView.Backup, "PBServer.Copy", args, &reply)
+				if !rpc_ok {
 					time.Sleep(viewservice.PingInterval)
 					continue
-				} else {
+				}
+				switch reply.Err {
+				case OK:
 					pb.copyfinished = true
-					break
+					ok = true
+				case ErrDuplicated:
+					pb.copyfinished = true
+					ok = true
+				case ErrWrongServer:
+					log.Printf("[ERROR] %v don't this it's buckup", pb.myView.Backup)
+				default:
 				}
 			}
 		}()
@@ -189,6 +212,7 @@ func StartServer(vshost string, me string) *PBServer {
 	pb.myView = viewservice.View{0, "", ""}
 	pb.copyfinished = true
 	pb.last_rpc = make(map[string]int)
+	pb.rpc_id = 0
 
 	rpcs := rpc.NewServer()
 	rpcs.Register(pb)

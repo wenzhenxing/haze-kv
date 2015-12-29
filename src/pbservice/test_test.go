@@ -16,7 +16,7 @@ import "os"
 import "sync"
 import "strconv"
 
-//import "strings"
+import "strings"
 import "sync/atomic"
 
 func check(ck *Clerk, key string, value string) {
@@ -431,7 +431,6 @@ func TestConcurrentSame(t *testing.T) {
 }
 */
 
-/*
 // check that all known appends are present in a value,
 // and are in order for each concurrent client.
 func checkAppends(t *testing.T, v string, counts []int) {
@@ -456,6 +455,7 @@ func checkAppends(t *testing.T, v string, counts []int) {
 	}
 }
 
+/*
 // do a bunch of concurrent Append()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Append()s in the same order.
@@ -683,6 +683,7 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 }
 */
 
+/*
 // constant put/get while crashing and restarting servers
 func TestRepeatedCrash(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -795,8 +796,8 @@ func TestRepeatedCrash(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
+*/
 
-/*
 func TestRepeatedCrashUnreliable(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -804,7 +805,7 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("S1", vshost)
 
 	fmt.Printf("Test: Repeated failures/restarts with concurrent updates to same key; unreliable ...\n")
 
@@ -854,7 +855,7 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 	ff := func(i int, ch chan int) {
 		ret := -1
 		defer func() { ch <- ret }()
-		ck := MakeClerk(vshost, "")
+		ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 		n := 0
 		for atomic.LoadInt32(&done) == 0 {
 			v := "x " + strconv.Itoa(i) + " " + strconv.Itoa(n) + " y"
@@ -888,7 +889,7 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 		counts = append(counts, n)
 	}
 
-	ck := MakeClerk(vshost, "")
+	ck := MakeClerk(vshost, "C99")
 
 	checkAppends(t, ck.Get("0"), counts)
 
@@ -908,7 +909,6 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
 /*
 

@@ -129,7 +129,9 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		case OK:
 			ok = true
 		case ErrDuplicated:
+			ok = true
 		case ErrCopyNotFinished:
+		case ErrSync:
 		default:
 		}
 	}

@@ -6,6 +6,7 @@ const (
 	ErrWrongServer     = "ErrWrongServer"
 	ErrCopyNotFinished = "ErrCopyNotFinished"
 	ErrDuplicated      = "ErrDuplicated"
+	ErrSync            = "Sync to buckup error"
 )
 
 type Err string
@@ -43,6 +44,7 @@ type CopyArgs struct {
 	Data     map[string]string
 	From     string
 	Last_rpc map[string]int
+	Rpc_id   int
 }
 
 type CopyReply struct {
