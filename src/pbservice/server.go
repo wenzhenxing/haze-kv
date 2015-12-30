@@ -29,6 +29,7 @@ type PBServer struct {
 	last_rpc     map[string]int
 	myView       viewservice.View
 	copyfinished bool
+	stop         bool
 	rpc_id       int //for rpc copy
 }
 
@@ -36,11 +37,16 @@ func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
 	// Your code here.
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
-  //check wrong server
-  if pb.myView.Primary != pb.me {
-    reply.Err = ErrWrongServer
-    return nil
-  }
+	//check wrong server
+	if pb.myView.Primary != pb.me {
+		reply.Err = ErrWrongServer
+		return nil
+	}
+	//check the connection between server and viewserver.
+	if pb.stop {
+		reply.Err = ErrUnReliable
+		return nil
+	}
 	/*
 			if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
 				reply.Err = OK
@@ -66,20 +72,25 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 	// Your code here.
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
-  //check wrong server
-  switch args.Kind {
-  case PUT_NORMAL:
-    if pb.myView.Primary != pb.me {
-      reply.Err = ErrWrongServer
-      return nil
-    }
-  case PUT_SYNC:
-    if pb.myView.Backup != pb.me {
-      reply.Err = ErrWrongServer
-      return errors.New("ErrWrongServer")
-    }
-  default:
-  }
+	//check wrong server
+	switch args.Kind {
+	case PUT_NORMAL:
+		if pb.myView.Primary != pb.me {
+			reply.Err = ErrWrongServer
+			return nil
+		}
+	case PUT_SYNC:
+		if pb.myView.Backup != pb.me {
+			reply.Err = ErrWrongServer
+			return errors.New("ErrWrongServer")
+		}
+	default:
+	}
+	//check connect between server and viewserver
+	if pb.stop {
+		reply.Err = ErrUnReliable
+		return nil
+	}
 	//filter all duplicated request
 	if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
 		reply.Err = ErrDuplicated
@@ -94,7 +105,7 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 	 */
 	if pb.myView.Backup != "" && pb.myView.Backup != pb.me {
 		log.Printf("[Sync] [%v] sync to backup [%v]", pb.me, pb.myView.Backup)
-    sync_args := &PutAppendArgs{args.Key, args.Value, args.Op, args.From, args.Rpc_id, PUT_SYNC}
+		sync_args := &PutAppendArgs{args.Key, args.Value, args.Op, args.From, args.Rpc_id, PUT_SYNC}
 		var reply_backup PutAppendReply
 		ok := call(pb.myView.Backup, "PBServer.PutAppend", sync_args, &reply_backup)
 		if !ok {
@@ -160,8 +171,10 @@ func (pb *PBServer) tick() {
 	defer pb.mu.Unlock()
 	view, err := pb.vs.Ping(pb.myView.Viewnum)
 	if err != nil {
+		pb.stop = true
 		return
 	}
+	pb.stop = false
 
 	flag := (pb.me == view.Primary &&
 		view.Backup != "" && view.Backup != pb.myView.Backup)
@@ -229,6 +242,7 @@ func StartServer(vshost string, me string) *PBServer {
 	pb.data = make(map[string]string)
 	pb.myView = viewservice.View{0, "", ""}
 	pb.copyfinished = true
+	pb.stop = false
 	pb.last_rpc = make(map[string]int)
 	pb.rpc_id = 0
 

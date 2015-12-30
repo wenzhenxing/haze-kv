@@ -85,11 +85,12 @@ func (ck *Clerk) Get(key string) string {
 	var reply GetReply
 	ok := false
 	for !ok {
-		ck.primary = ck.vs.Primary()
+		//ck.primary = ck.vs.Primary()
 		log.Printf("[client %s] Get(%s) to [%v] %v times\n", ck.me, key, ck.primary, args.Rpc_id)
 		rpc_ok := call(ck.primary, "PBServer.Get", args, &reply)
 		if !rpc_ok {
 			time.Sleep(viewservice.PingInterval)
+			ck.primary = ck.vs.Primary()
 			continue
 		}
 		switch reply.Err {
@@ -98,10 +99,16 @@ func (ck *Clerk) Get(key string) string {
 		case ErrDuplicated:
 			ok = true
 		case ErrCopyNotFinished:
-      log.Printf("[ErrCopyNotFinished][client %v] Primary %v not copy finished\n", ck.me, ck.primary)
-    case ErrWrongServer:
-      log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n", ck.me, ck.primary)
+			log.Printf("[ErrCopyNotFinished][client %v] Primary %v not copy finished\n", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
+		case ErrWrongServer:
+			log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
+		case ErrUnReliable:
+			log.Printf("[ErrUnReliable][client %v] %v unreliable", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
 		default:
+			ck.primary = ck.vs.Primary()
 		}
 	}
 	log.Printf("[client %s] Get(%s)-%v to [%v] SUCCESS\n", ck.me, key, reply.Value, ck.primary)
@@ -121,11 +128,12 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	var reply PutAppendReply
 	ok := false
 	for !ok {
-		ck.primary = ck.vs.Primary()
+		//ck.primary = ck.vs.Primary()
 		log.Printf("[client %s] PutAppend(%v-%v) to [%v] %v times\n", ck.me, key, value, ck.primary, args.Rpc_id)
 		rpc_ok := call(ck.primary, "PBServer.PutAppend", args, &reply)
 		if !rpc_ok {
 			time.Sleep(viewservice.PingInterval)
+			ck.primary = ck.vs.Primary()
 			continue
 		}
 		switch reply.Err {
@@ -134,10 +142,18 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		case ErrDuplicated:
 			ok = true
 		case ErrCopyNotFinished:
-    case ErrWrongServer:
-      log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n",ck.me, ck.primary)
+			log.Printf("[ErrCopyNotFinished][client %v] Primary %v not copy finished\n", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
+		case ErrWrongServer:
+			log.Printf("[ErrWrongServer][client %v] %v don't think it's primary\n", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
 		case ErrSync:
+			ck.primary = ck.vs.Primary()
+		case ErrUnReliable:
+			log.Printf("[ErrUnReliable][client %v] %v unreliable", ck.me, ck.primary)
+			ck.primary = ck.vs.Primary()
 		default:
+			ck.primary = ck.vs.Primary()
 		}
 	}
 	log.Printf("[client %s] PutAppend(%v-%v) to [%v] SECUSS\n", ck.me, key, value, ck.primary)

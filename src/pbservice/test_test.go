@@ -3,8 +3,8 @@ package pbservice
 import "viewservice"
 import "fmt"
 
-//import "io"
-//import "net"
+import "io"
+import "net"
 import "testing"
 import "time"
 import "log"
@@ -37,7 +37,6 @@ func port(tag string, host int) string {
 	return s
 }
 
-/*
 func TestBasicFail(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -181,9 +180,7 @@ func TestBasicFail(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
-/*
 func TestAtMostOnce(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -237,9 +234,7 @@ func TestAtMostOnce(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
-/*
 // Put right after a backup dies.
 func TestFailPut(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -328,9 +323,7 @@ func TestFailPut(t *testing.T) {
 	time.Sleep(viewservice.PingInterval * 2)
 	vs.Kill()
 }
-*/
 
-/*
 // do a bunch of concurrent Put()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Put()s in the same order.
@@ -429,7 +422,6 @@ func TestConcurrentSame(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
 // check that all known appends are present in a value,
 // and are in order for each concurrent client.
@@ -455,7 +447,6 @@ func checkAppends(t *testing.T, v string, counts []int) {
 	}
 }
 
-/*
 // do a bunch of concurrent Append()s on the same key,
 // then check that primary and backup have identical values.
 // i.e. that they processed the Append()s in the same order.
@@ -565,14 +556,12 @@ func TestConcurrentSameAppend(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
-/*
 func TestConcurrentSameUnreliable(t *testing.T) {
-    runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(4)
 
 	tag := "csu"
-    vshost := port(tag+"v", 1)
+	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
 	vck := viewservice.MakeClerk("S1", vshost)
@@ -681,9 +670,7 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
-/*
 // constant put/get while crashing and restarting servers
 func TestRepeatedCrash(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -796,7 +783,6 @@ func TestRepeatedCrash(t *testing.T) {
 	vs.Kill()
 	time.Sleep(time.Second)
 }
-*/
 
 func TestRepeatedCrashUnreliable(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -910,8 +896,6 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 	time.Sleep(time.Second)
 }
 
-/*
-
 func proxy(t *testing.T, port string, delay *int32) {
 	portx := port + "x"
 	os.Remove(portx)
@@ -970,9 +954,7 @@ func proxy(t *testing.T, port string, delay *int32) {
 		}
 	}()
 }
-*/
 
-/*
 func TestPartition1(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -980,9 +962,9 @@ func TestPartition1(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("S1", vshost)
 
-	ck1 := MakeClerk(vshost, "")
+	ck1 := MakeClerk(vshost, "C1")
 
 	fmt.Printf("Test: Old primary does not serve Gets ...\n")
 
@@ -1044,7 +1026,7 @@ func TestPartition1(t *testing.T) {
 	time.Sleep(2 * viewservice.PingInterval)
 
 	// change the value (on s2) so it's no longer "1".
-	ck2 := MakeClerk(vshost, "")
+	ck2 := MakeClerk(vshost, "C2")
 	ck2.Put("a", "111")
 	check(ck2, "a", "111")
 
@@ -1065,9 +1047,7 @@ func TestPartition1(t *testing.T) {
 	s2.kill()
 	vs.Kill()
 }
-*/
 
-/*
 func TestPartition2(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -1075,9 +1055,9 @@ func TestPartition2(t *testing.T) {
 	vshost := port(tag+"v", 1)
 	vs := viewservice.StartServer(vshost)
 	time.Sleep(time.Second)
-	vck := viewservice.MakeClerk("", vshost)
+	vck := viewservice.MakeClerk("S1", vshost)
 
-	ck1 := MakeClerk(vshost, "")
+	ck1 := MakeClerk(vshost, "C1")
 
 	vshosta := vshost + "a"
 	os.Link(vshost, vshosta)
@@ -1146,7 +1126,7 @@ func TestPartition2(t *testing.T) {
 	}
 	time.Sleep(2 * time.Second)
 
-	ck2 := MakeClerk(vshost, "")
+	ck2 := MakeClerk(vshost, "C2")
 	ck2.Put("a", "2")
 	check(ck2, "a", "2")
 
@@ -1170,5 +1150,3 @@ func TestPartition2(t *testing.T) {
 	s3.kill()
 	vs.Kill()
 }
-
-*/

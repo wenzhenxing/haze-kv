@@ -7,14 +7,15 @@ const (
 	ErrCopyNotFinished = "ErrCopyNotFinished"
 	ErrDuplicated      = "ErrDuplicated"
 	ErrSync            = "Sync to buckup error"
+	ErrUnReliable      = "ErrUnReliable"
 )
 
 /*
  * Used to identifiy the put request kind
  */
 const (
-  PUT_NORMAL = iota
-  PUT_SYNC
+	PUT_NORMAL = iota
+	PUT_SYNC
 )
 
 type Err string
@@ -27,7 +28,7 @@ type PutAppendArgs struct {
 	Op     string
 	From   string
 	Rpc_id int //the kv-server filter all Num>0
-  Kind int
+	Kind   int
 
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
