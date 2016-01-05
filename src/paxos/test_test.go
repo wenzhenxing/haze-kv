@@ -6,7 +6,7 @@ import "strconv"
 import "os"
 import "time"
 import "fmt"
-//import "math/rand"
+import "math/rand"
 import crand "crypto/rand"
 import "encoding/base64"
 //import "sync/atomic"
@@ -173,7 +173,6 @@ func TestBasic(t *testing.T) {
 	fmt.Printf("  ... Passed\n")
 }
 
-/*
 func TestDeaf(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -216,8 +215,7 @@ func TestDeaf(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
-/*
+
 func TestForget(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -299,9 +297,7 @@ func TestForget(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
-/*
 func TestManyForget(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -370,7 +366,6 @@ func TestManyForget(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 //
 // does paxos forgetting actually free the memory?
