@@ -9,7 +9,7 @@ import "fmt"
 import "math/rand"
 import crand "crypto/rand"
 import "encoding/base64"
-//import "sync/atomic"
+import "sync/atomic"
 
 func randstring(n int) string {
 	b := make([]byte, 2*n)
@@ -113,6 +113,7 @@ func noTestSpeed(t *testing.T) {
 	fmt.Printf("20 agreements %v seconds\n", d.Seconds())
 }
 
+/*
 func TestBasic(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -366,11 +367,11 @@ func TestManyForget(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
+*/
 
 //
 // does paxos forgetting actually free the memory?
 //
-/*
 func TestForgetMem(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -455,12 +456,10 @@ func TestForgetMem(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 //
 // does Max() work after Done()s?
 //
-/*
 func TestDoneMax(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -504,9 +503,7 @@ func TestDoneMax(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
-/*
 func TestRPCCount(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -578,12 +575,10 @@ func TestRPCCount(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 //
 // many agreements (without failures)
 //
-/*
 func TestMany(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -629,7 +624,6 @@ func TestMany(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 //
 // a peer starts up, with proposal, after others decide.
