@@ -30,6 +30,7 @@ import "sync"
 import "sync/atomic"
 import "fmt"
 import "math/rand"
+
 //import "errors"
 import "time"
 
@@ -46,13 +47,13 @@ const (
 )
 
 type Status struct {
-  status Fate
-  bidding int
-  accept_value interface{}
+	status       Fate
+	bidding      int
+	accept_value interface{}
 }
 
-func Status_new()*Status {
-  return &Status{Pending, -1, nil}
+func Status_new() *Status {
+	return &Status{Pending, -1, nil}
 }
 
 type Paxos struct {
@@ -65,10 +66,10 @@ type Paxos struct {
 	me         int // index into peers[]
 
 	// Your data here.
-  min_instance int
-  max_instance int
-  done int
-  status map[int]*Status
+	min_instance int
+	max_instance int
+	done         int
+	status       map[int]*Status
 }
 
 //
@@ -108,266 +109,277 @@ func call(srv string, name string, args interface{}, reply interface{}) bool {
 }
 
 const (
-  OK = iota+1
-  Reject
-  NotMajority
+	OK = iota + 1
+	Reject
+	NotMajority
 )
 
 type PrepareArgs struct {
-  From int
-  Seq int
-  Bidding int
+	From    int
+	Seq     int
+	Bidding int
 }
 
 type PrepareReply struct {
-  Err int
-  Accept_bidding int
-  Accept_Value interface{}
+	Err            int
+	Accept_bidding int
+	Accept_Value   interface{}
 }
 
-func (px *Paxos)Prepare_handler(args *PrepareArgs, reply *PrepareReply)error {
-  px.mu.Lock()
-  px.mu.Unlock()
-  px.Prepare_handler_local(args, reply)
-  return nil
+func (px *Paxos) Prepare_handler(args *PrepareArgs, reply *PrepareReply) error {
+	px.mu.Lock()
+	px.mu.Unlock()
+	px.Prepare_handler_local(args, reply)
+	return nil
 }
 
-func (px *Paxos)Prepare_handler_local(args *PrepareArgs, reply *PrepareReply){
-  log.Printf("[Instance %v] [Promis Paxos-%v] Do prepare request bidding:%v from:[Paxos %v]\n",args.Seq, px.me, args.Bidding, args.From)
-  s, ok := px.status[args.Seq]
-  if !ok {
-    px.status[args.Seq] = Status_new()
-    s = px.status[args.Seq]
-  }
-  if args.Bidding > s.bidding {
-    s.bidding = args.Bidding
-    reply.Err = OK
-  }else {
-    reply.Err = Reject
-  }
-  reply.Accept_bidding = s.bidding
-  reply.Accept_Value = s.accept_value
+func (px *Paxos) Prepare_handler_local(args *PrepareArgs, reply *PrepareReply) {
+	log.Printf("[Instance %v] [Promis Paxos-%v] Do prepare request bidding:%v from:[Paxos %v]\n", args.Seq, px.me, args.Bidding, args.From)
+	s, ok := px.status[args.Seq]
+	if !ok {
+		px.status[args.Seq] = Status_new()
+		s = px.status[args.Seq]
+	}
+	if args.Bidding > s.bidding {
+		s.bidding = args.Bidding
+	  reply.Accept_bidding = s.bidding
+	  reply.Accept_Value = s.accept_value
+		reply.Err = OK
+    if s.accept_value != nil {
+      log.Printf("[Instance %v][Prepare][Paxos %v] Already has a value:%v", args.Seq, px.me, s.accept_value)
+      }
+	} else {
+		reply.Err = Reject
+	}
 }
 
 /*
  * Broadcast the prepare request to all Acceptor
  */
-func (px *Paxos)Prepare(seq int, bidding int, v interface{})(interface{}, int){
-  //log.Printf("[Instance %v] Broadcast Prepare bidding:%v value:%v\n", seq, bidding, v)
-  log.Printf("[Instance %v] Broadcast Prepare bidding:%v\n", seq, bidding)
-  recieved_num := 0
-  cur_value := v
-  cur_bidding := 0
-  for idx, p := range px.peers {
-    args := &PrepareArgs{px.me, seq, bidding}
-    var reply PrepareReply
-    if idx == px.me {
-      px.mu.Lock()
-      px.Prepare_handler_local(args, &reply)
-      px.mu.Unlock()
-    }else {
-    call(p, "Paxos.Prepare_handler", args, &reply)
-  }
-    switch reply.Err {
-    case OK:
-      recieved_num++
-      if reply.Accept_Value != nil && reply.Accept_bidding>cur_bidding {
-        cur_bidding = reply.Accept_bidding
-        cur_value = reply.Accept_Value
-      }
-    case Reject:
-      log.Printf("[Instance %v] Paxos-%v reject prepare since it has a high bidding %v than %v\n",seq, idx, reply.Accept_bidding, bidding)
-    default:
-    }
-  }
-  if recieved_num > len(px.peers)/2 {
-    if cur_value != v {
-      //log.Printf("[Instance %v] [Prepare] Change Proposal %v to %v\n", seq, v, cur_value)
-      log.Printf("[Instance %v] [Prepare] Change Proposal  to \n", seq)
-    }
-    return cur_value, OK
-  }else {
-    return nil, NotMajority
-  }
-  return nil, OK
+func (px *Paxos) Prepare(seq int, bidding int, v interface{}) (interface{}, int) {
+	log.Printf("[Instance %v][Paxos %v]Broadcast Prepare bidding:%v value:%v\n", seq, px.me, bidding, v)
+	//log.Printf("[Instance %v] Broadcast Prepare bidding:%v\n", seq, bidding)
+	recieved_num := 0
+	cur_value := v
+	max_bidding := -1
+	for idx, p := range px.peers {
+		args := &PrepareArgs{px.me, seq, bidding}
+		var reply PrepareReply
+		if idx == px.me {
+			px.mu.Lock()
+			px.Prepare_handler_local(args, &reply)
+			px.mu.Unlock()
+		} else {
+			call(p, "Paxos.Prepare_handler", args, &reply)
+		}
+		switch reply.Err {
+		case OK:
+			recieved_num++
+			if reply.Accept_Value != nil && reply.Accept_bidding > max_bidding {
+				max_bidding = reply.Accept_bidding
+				cur_value = reply.Accept_Value
+			}
+		case Reject:
+			log.Printf("[Instance %v] [Paxos-%v] reject prepare since it has a high bidding %v than %v\n", seq, idx, reply.Accept_bidding, bidding)
+      return nil, Reject
+		default:
+		}
+	}
+	if recieved_num > len(px.peers)/2 {
+		if cur_value != v {
+			log.Printf("[Instance %v] [Prepare] [Paxos %v]Change Proposal %v to %v\n", seq, v, px.me, cur_value)
+		}
+		return cur_value, OK
+	} else {
+		return nil, NotMajority
+	}
 }
 
 type AcceptArgs struct {
-  From int
-  Seq int
-  Bidding int
-  Value interface{}
+	From    int
+	Seq     int
+	Bidding int
+	Value   interface{}
 }
 
 type AcceptReply struct {
-  Err int
-  Bidding int
+	Err     int
+	Bidding int
 }
 
-func (px *Paxos)Accept_handler(args *AcceptArgs, reply *AcceptReply)error {
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  px.Accept_handler_local(args, reply)
-  return nil
+func (px *Paxos) Accept_handler(args *AcceptArgs, reply *AcceptReply) error {
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	px.Accept_handler_local(args, reply)
+	return nil
 }
 
-func (px *Paxos)Accept_handler_local(args *AcceptArgs, reply *AcceptReply) {
-  //log.Printf("[Instance %v] [AcceptRequest Paxos %v] bidding:%v value:%v \n", args.Seq, px.me, args.Bidding, args.Value)
-  log.Printf("[Instance %v] [AcceptRequest Paxos %v] bidding:%v \n", args.Seq, px.me, args.Bidding)
-  s, ok := px.status[args.Seq]
-  if !ok {
-    s = Status_new()
-    px.status[args.Seq] = s
-  }
-  if args.Bidding >= s.bidding {
-    s.bidding = args.Bidding
-    s.accept_value = args.Value
-  }
-  reply.Bidding = s.bidding
-  reply.Err = OK
+func (px *Paxos) Accept_handler_local(args *AcceptArgs, reply *AcceptReply) {
+	log.Printf("[Instance %v] [AcceptRequest Paxos %v] bidding:%v value:%v \n", args.Seq, px.me, args.Bidding, args.Value)
+	//log.Printf("[Instance %v] [AcceptRequest Paxos %v] bidding:%v \n", args.Seq, px.me, args.Bidding)
+	s, ok := px.status[args.Seq]
+	if !ok {
+		s = Status_new()
+		px.status[args.Seq] = s
+	}
+	if args.Bidding >= s.bidding {
+		s.bidding = args.Bidding
+		s.accept_value = args.Value
+	}
+	reply.Bidding = s.bidding
+	reply.Err = OK
 
 }
 
-func (px *Paxos)Accept(seq int, bidding int,  v interface{})(interface{}, int) {
-  //log.Printf("[Instance %v] Broadcast to all bidding:%v value:%v\n", seq, bidding, v)
-  log.Printf("[Instance %v] Broadcast to all bidding:%v\n", seq, bidding)
-  recieved_num := 0
-  for idx, p := range px.peers {
-    args := &AcceptArgs{px.me, seq, bidding, v}
-    var reply AcceptReply
-    if idx == px.me {
-      px.mu.Lock()
-      px.Accept_handler_local(args, &reply)
-      px.mu.Unlock()
-    }else {
-    call(p, "Paxos.Accept_handler", args, &reply)
-  }
-    if reply.Err == OK {
-      recieved_num++
-      if reply.Bidding > bidding {
-        return nil, Reject
-      }
-    }
-  }
-  if recieved_num > len(px.peers)/2 {
-    return v, OK
-  }
-  return nil, NotMajority
+func (px *Paxos) Accept(seq int, bidding int, v interface{}) (interface{}, int) {
+	log.Printf("[Instance %v][Paxos %v] Broadcast to all bidding:%v value:%v\n", seq, px.me, bidding, v)
+	//log.Printf("[Instance %v] Broadcast to all bidding:%v\n", seq, bidding)
+	recieved_num := 0
+	for idx, p := range px.peers {
+		args := &AcceptArgs{px.me, seq, bidding, v}
+		var reply AcceptReply
+		if idx == px.me {
+			px.mu.Lock()
+			px.Accept_handler_local(args, &reply)
+			px.mu.Unlock()
+		} else {
+			call(p, "Paxos.Accept_handler", args, &reply)
+		}
+		switch reply.Err {
+		case OK:
+			recieved_num++
+			if reply.Bidding > bidding {
+				return nil, Reject
+			}
+		default:
+		}
+	}
+	if recieved_num > len(px.peers)/2 {
+		return v, OK
+	}
+	return nil, NotMajority
 }
 
 type LearnArgs struct {
-  From int
-  Seq int
-  Bidding int
-  Value interface{}
+	From    int
+	Seq     int
+	Bidding int
+	Value   interface{}
 }
 
 type LearnReply struct {
-  Err int
+	Err int
 }
 
-func (px *Paxos)Learn_handler(args *LearnArgs, reply *LearnReply)error{
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  px.Learn_handler_local(args, reply)
-  return nil
+func (px *Paxos) Learn_handler(args *LearnArgs, reply *LearnReply) error {
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	px.Learn_handler_local(args, reply)
+	return nil
 }
 
-func (px *Paxos)Learn_handler_local(args *LearnArgs, reply *LearnReply){
-  //log.Printf("[Instance %v] Learn bidding:%v, value:%v at [Paxos %v]\n", args.Seq, args.Bidding, args.Value, px.me)
-  log.Printf("[Instance %v] Learn bidding:%v at [Paxos %v]\n", args.Seq, args.Bidding, px.me)
-  s, ok := px.status[args.Seq]
-  if !ok {
-    s = Status_new()
-    px.status[args.Seq] = s
-  }
-  s.status = Decided
-  s.bidding = args.Bidding
-  s.accept_value = args.Value
-  if args.Seq > px.max_instance {
-    log.Printf("[Paxos %v] Change the max_instance %v to %v\n", px.me, px.max_instance, args.Seq)
-    px.max_instance = args.Seq
-  }
+func (px *Paxos) Learn_handler_local(args *LearnArgs, reply *LearnReply) {
+	log.Printf("[Instance %v] Learn bidding:%v, value:%v at [Paxos %v]\n", args.Seq, args.Bidding, args.Value, px.me)
+	//log.Printf("[Instance %v] Learn bidding:%v at [Paxos %v]\n", args.Seq, args.Bidding, px.me)
+	s, ok := px.status[args.Seq]
+	if !ok {
+		px.status[args.Seq] = Status_new()
+		s = px.status[args.Seq]
+	}
+	s.bidding = args.Bidding
+	s.accept_value = args.Value
+	s.status = Decided
+	if args.Seq > px.max_instance {
+		log.Printf("[Paxos %v] Change the max_instance %v to %v\n", px.me, px.max_instance, args.Seq)
+		px.max_instance = args.Seq
+	}
 
-  reply.Err = OK
+	reply.Err = OK
 }
 
-func (px *Paxos)Learn(seq int, bidding int, v interface{}) int {
-  //log.Printf("[Instance %v] [Learn] Broadcast learn to all bidding:%v, value:%v\n", seq, bidding, v)
-  log.Printf("[Instance %v] [Learn] Broadcast learn to all bidding:%v\n", seq, bidding)
-  recieved_num := 0
-  for idx, p := range px.peers {
-    args := &LearnArgs{px.me, seq, bidding, v}
-    var reply LearnReply
-    if idx == px.me {
-      px.mu.Lock()
-      px.Learn_handler_local(args, &reply)
-      px.mu.Unlock()
-    }else {
-    call(p, "Paxos.Learn_handler", args, &reply)
-  }
-    if reply.Err == OK {
-      recieved_num++
-    }
-  }
-  if recieved_num == len(px.peers) {
-    return OK
-  }
-  return NotMajority
+func (px *Paxos) Learn(seq int, bidding int, v interface{}) int {
+	log.Printf("[Instance %v] [Learn] [Paxos %v]Broadcast learn to all bidding:%v, value:%v\n", seq, px.me, bidding, v)
+	//log.Printf("[Instance %v] [Learn] Broadcast learn to all bidding:%v\n", seq, bidding)
+	recieved_num := 0
+	for idx, p := range px.peers {
+		args := &LearnArgs{px.me, seq, bidding, v}
+		var reply LearnReply
+		if idx == px.me {
+			px.mu.Lock()
+			px.Learn_handler_local(args, &reply)
+			px.mu.Unlock()
+		} else {
+			call(p, "Paxos.Learn_handler", args, &reply)
+		}
+		if reply.Err == OK {
+			recieved_num++
+		}
+	}
+	if recieved_num == len(px.peers) {
+		return OK
+	}
+	return NotMajority
 }
 
-func (px *Paxos) Instance(seq int, bidding int, v interface{})Fate {
-  log.Printf("[Instance %v] bidding:%v\n",seq, bidding)
-  //check
-  s, ok := px.status[seq]
-  if ok && s.status == Decided{
-    return Decided
-  }
-  if s.bidding > bidding {
-    log.Printf("[Instance %v] Paxos-%v Reject. current bidding:%v, your bidding:\n", seq, px.me, s.bidding, bidding)
+func (px *Paxos) Instance(seq int, bidding int, v interface{}) Fate {
+	log.Printf("[Instance %v] bidding:%v\n", seq, bidding)
+	//check
+	px.mu.Lock()
+	if seq < px.min_instance {
+		px.mu.Unlock()
+		return Forgotten
+	}
+	s, ok := px.status[seq]
+	if ok && s.status == Decided {
+		px.mu.Unlock()
+		return Decided
+	}
+	if s.bidding > bidding {
+		log.Printf("[Instance %v] Paxos-%v Reject. current bidding:%v, your bidding:%v\n", seq, px.me, s.bidding, bidding)
+		px.mu.Unlock()
+		return Pending
+	}
+	px.mu.Unlock()
+	value, err_p := px.Prepare(seq, bidding, v)
+	switch err_p {
+	case OK:
+		log.Printf("[Instance %v][Paxos %v] Proposal value:%v\n", seq, px.me, value)
+		//log.Printf("[Instance %v] Proposal value\n", seq)
+	case NotMajority:
+		log.Printf("[Instance %v][Paxos %v] Not recieve enough promise\n", seq, px.me)
+		return Pending
+	case Reject:
     return Pending
-  }
-  value, err_p := px.Prepare(seq, bidding, v)
-  switch err_p {
-  case OK:
-    //log.Printf("[Instance %v] Proposal value:%v\n", seq, value)
-    log.Printf("[Instance %v] Proposal value\n", seq)
-  case NotMajority:
-    log.Printf("[Instance %v] Not recieve enough promise\n", seq)
-    return Pending
-  case Reject:
-    panic("impossible")
-  default:
-    panic("impossible")
-  }
-  choosen_value, err_a := px.Accept(seq, bidding, value)
-  switch err_a {
-  case OK:
-    //log.Printf("[Instance %v] [Accept]get Majority Choosen value:%v\n",seq, choosen_value)
-    log.Printf("[Instance %v] [Accept]get Majority Choosen value\n",seq)
-  case NotMajority:
-    log.Printf("[Instance %v] [ERROR] Not recieve enough acception\n", seq)
-    return Pending
-  case Reject:
-    log.Printf("[Instance %v] [ERROR] Acceptor alreay has high bidding\n", seq)
-    return Pending
-  default:
-    panic("impossible")
-  }
-  err_l := px.Learn(seq, bidding, choosen_value)
-  switch err_l {
-  case OK:
-    log.Printf("[Instance %v] [Learn] All Acceptor learn success\n", seq)
-  case NotMajority:
-    log.Printf("[Instance %v] [Learn] Not all Acceptor learn success.Need retry ?\n", seq)
-    //return Pending
-  default:
-    panic("impossible")
-  }
-  //if seq > px.max_instance {
-  //  px.max_instance = seq
-  //}
-  return Decided
+	default:
+		panic("impossible")
+	}
+	choosen_value, err_a := px.Accept(seq, bidding, value)
+	switch err_a {
+	case OK:
+		log.Printf("[Instance %v] [Accept] [Paxos %v]get Majority Choosen value:%v\n", seq, px.me, choosen_value)
+		//log.Printf("[Instance %v] [Accept]get Majority Choosen value\n",seq)
+	case NotMajority:
+		log.Printf("[Instance %v] [Accept] [Paxos %v] Not recieve enough acception\n", seq, px.me)
+		return Pending
+	case Reject:
+		log.Printf("[Instance %v] [ERROR] [Paxos %v]Acceptor alreay has high bidding\n", seq, px.me)
+		return Pending
+	default:
+		panic("impossible")
+	}
+	err_l := px.Learn(seq, bidding, choosen_value)
+	switch err_l {
+	case OK:
+		log.Printf("[Instance %v] [Learn] All Acceptor learn success\n", seq)
+	case NotMajority:
+		log.Printf("[Instance %v] [Learn] Not all Acceptor learn success.Need retry ?\n", seq)
+	default:
+		panic("impossible")
+	}
+	//if seq > px.max_instance {
+	//  px.max_instance = seq
+	//}
+	return Decided
 }
 
 //
@@ -378,81 +390,85 @@ func (px *Paxos) Instance(seq int, bidding int, v interface{})Fate {
 // is reached.
 //
 func (px *Paxos) Start(seq int, v interface{}) {
-  // Your code here.
-  go func(){
-    //log.Printf("[Instance %v] Start value:%v at [Paxos %v]\n", seq, v, px.me)
-    log.Printf("[Instance %v] Start at [Paxos %v]\n", seq, px.me)
-    if seq < px.min_instance {
-      return
-    }
-    px.mu.Lock()
-    if px.status[seq] == nil {
-      px.status[seq] = Status_new()
-    }
-    px.mu.Unlock()
-    bidding := 0
-    for {
-      decided := px.Instance(seq, bidding, v)
-      if decided == Decided {
-        break
-      }
-      time.Sleep(300 * time.Millisecond)
-      bidding++
-    }
-    log.Printf("[Instance %v] Decided\n", seq)
-  }()
+	// Your code here.
+	go func() {
+		log.Printf("[Instance %v] [Paxos %v]Start value:%v\n", seq, px.me, v)
+		//log.Printf("[Instance %v] Start at [Paxos %v]\n", seq, px.me)
+		px.mu.Lock()
+		if px.status[seq] == nil {
+			px.status[seq] = Status_new()
+		}
+		if px.status[seq].status == Decided {
+			return
+		}
+		px.mu.Unlock()
+		bidding := 0
+    r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for {
+			decided := px.Instance(seq, bidding, v)
+			if px.isdead() {
+				log.Printf("[Paxos %v] Dead!!!!!\n", px.me)
+				break
+			}
+			if decided == Decided {
+				log.Printf("[Instance %v][Paxos %v]Decided\n", seq, px.me)
+				return
+			}
+			time.Sleep(time.Duration(r.Intn(100)) * time.Millisecond)
+			bidding++
+		}
+	}()
 }
 
 type GCArgs struct {
-  From int
-  Seq int
-  Min_seq int
+	From    int
+	Seq     int
+	Min_seq int
 }
 
 type GCReply struct {
-  Err int
+	Err int
 }
 
 type DoneArgs struct {
-  From int
-  Seq int
-  Min_seq int
+	From    int
+	Seq     int
+	Min_seq int
 }
 
 type DoneReply struct {
-  Err int
-  Done_seq int
+	Err      int
+	Done_seq int
 }
 
-func (px *Paxos)DoGC(args *GCArgs, reply *GCReply) error {
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  px.DoGC_local(args, reply)
-  return nil
+func (px *Paxos) DoGC(args *GCArgs, reply *GCReply) error {
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	px.DoGC_local(args, reply)
+	return nil
 }
 
-func (px *Paxos)DoGC_local(args *GCArgs, reply *GCReply){
-  if px.min_instance < args.Min_seq {
-    px.min_instance = args.Min_seq
-  }
-  for k, _ := range px.status {
-    if k < px.min_instance {
-      delete(px.status, k)
-    }
-  }
-  reply.Err = OK
-  log.Printf("[GC] [Paxos %v] do gc delete seq < %v\n", px.me, px.min_instance)
+func (px *Paxos) DoGC_local(args *GCArgs, reply *GCReply) {
+	if px.min_instance < args.Min_seq {
+		px.min_instance = args.Min_seq
+	}
+	for k, _ := range px.status {
+		if k < px.min_instance {
+			delete(px.status, k)
+		}
+	}
+	reply.Err = OK
+	log.Printf("[GC] [Paxos %v] do gc delete seq < %v\n", px.me, px.min_instance)
 }
 
-
-func (px *Paxos)GetDone(args *DoneArgs, reply *DoneReply)error {
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  reply.Done_seq = px.done
-  //px.min_instance = px.done+1
-  reply.Err = OK
-  log.Printf("[Done] [Paxos %v] My done seq:%v\n", px.me, px.done)
-  return nil
+func (px *Paxos) GetDone(args *DoneArgs, reply *DoneReply) error {
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	reply.Done_seq = px.done
+	//px.min_instance = px.done+1
+	reply.Err = OK
+	log.Printf("[Done] [Paxos %v] My done seq:%v\n", px.me, px.done)
+	return nil
 }
 
 //
@@ -463,61 +479,61 @@ func (px *Paxos)GetDone(args *DoneArgs, reply *DoneReply)error {
 //
 func (px *Paxos) Done(seq int) {
 	// Your code here.
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  log.Printf("[Paxos %v] Done seq:%v\n", px.me, seq)
-  if seq < px.min_instance {
-    log.Printf("[Done][Paxos %v] %v < %v, omit\n", px.me, seq, px.min_instance)
-    return
-  }
-  if seq > px.max_instance {
-    log.Printf("[Done][Paxos %v] set seq by max_instance:%v\n", px.me, px.max_instance)
-    seq = px.max_instance
-  }
-  if seq < px.done {
-    log.Printf("[Done][Paxos %v] %v < %v, omit\n", px.me, seq, px.done)
-    return
-  }
-  px.done = seq
-  min := px.done
-  get_all := true
-  log.Printf("[Done] [Paxos %v] Broadcast GetDone to all\n", px.me)
-  for idx, p := range px.peers {
-    if idx == px.me {
-      continue
-    }
-    args := &DoneArgs{idx, seq, px.done}
-    var reply DoneReply
-    rpc_ok := call(p, "Paxos.GetDone", args, &reply)
-    get_all = get_all && rpc_ok
-    if rpc_ok {
-      if reply.Done_seq < min {
-        min = reply.Done_seq
-      }
-    }
-  }
-  if get_all {
-    px.min_instance = min+1
-    log.Printf("[Done] Minium is %v\n", px.min_instance)
-  }else {
-    log.Printf("[Done] Not recieve all response\n")
-    return
-  }
-  //GC
-  get_all = true
-  for idx, p := range px.peers {
-    args := &GCArgs{idx, seq, px.min_instance}
-    var reply GCReply
-    if idx == px.me {
-      px.DoGC_local(args, &reply)
-    }else {
-      rpc_ok := call(p, "Paxos.DoGC", args, &reply)
-      get_all = get_all && rpc_ok
-    }
-  }
-  if !get_all {
-    log.Printf("[GC] Not gc all\n")
-  }
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	log.Printf("[Paxos %v] Done seq:%v\n", px.me, seq)
+	if seq < px.min_instance {
+		log.Printf("[Done][Paxos %v] %v < %v, omit\n", px.me, seq, px.min_instance)
+		return
+	}
+	if seq > px.max_instance {
+		log.Printf("[Done][Paxos %v] set seq by max_instance:%v\n", px.me, px.max_instance)
+		seq = px.max_instance
+	}
+	if seq < px.done {
+		log.Printf("[Done][Paxos %v] %v < %v, omit\n", px.me, seq, px.done)
+		return
+	}
+	px.done = seq
+	min := px.done
+	get_all := true
+	log.Printf("[Done] [Paxos %v] Broadcast GetDone to all\n", px.me)
+	for idx, p := range px.peers {
+		if idx == px.me {
+			continue
+		}
+		args := &DoneArgs{idx, seq, px.done}
+		var reply DoneReply
+		rpc_ok := call(p, "Paxos.GetDone", args, &reply)
+		get_all = get_all && rpc_ok
+		if rpc_ok {
+			if reply.Done_seq < min {
+				min = reply.Done_seq
+			}
+		}
+	}
+	if get_all {
+		px.min_instance = min + 1
+		log.Printf("[Done] Minium is %v\n", px.min_instance)
+	} else {
+		log.Printf("[Done] Not recieve all response\n")
+		return
+	}
+	//GC
+	get_all = true
+	for idx, p := range px.peers {
+		args := &GCArgs{idx, seq, px.min_instance}
+		var reply GCReply
+		if idx == px.me {
+			px.DoGC_local(args, &reply)
+		} else {
+			rpc_ok := call(p, "Paxos.DoGC", args, &reply)
+			get_all = get_all && rpc_ok
+		}
+	}
+	if !get_all {
+		log.Printf("[GC] Not gc all\n")
+	}
 }
 
 //
@@ -527,8 +543,8 @@ func (px *Paxos) Done(seq int) {
 //
 func (px *Paxos) Max() int {
 	// Your code here.
-  px.mu.Lock()
-  defer px.mu.Unlock()
+	px.mu.Lock()
+	defer px.mu.Unlock()
 	return px.max_instance
 }
 
@@ -561,9 +577,9 @@ func (px *Paxos) Max() int {
 // instances.
 //
 func (px *Paxos) Min() int {
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  return px.min_instance
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	return px.min_instance
 }
 
 //
@@ -575,15 +591,17 @@ func (px *Paxos) Min() int {
 //
 func (px *Paxos) Status(seq int) (Fate, interface{}) {
 	// Your code here.
-  px.mu.Lock()
-  defer px.mu.Unlock()
-  if seq < px.min_instance {
-    return Forgotten, nil
-  }
-  s , ok := px.status[seq]
-  if ok {
-    return s.status, s.accept_value
-  }
+	px.mu.Lock()
+	defer px.mu.Unlock()
+	if seq < px.min_instance {
+		return Forgotten, nil
+	}
+	s, ok := px.status[seq]
+	if !ok {
+		px.status[seq] = Status_new()
+	} else {
+		return s.status, s.accept_value
+	}
 	return Pending, nil
 }
 
@@ -630,10 +648,10 @@ func Make(peers []string, me int, rpcs *rpc.Server) *Paxos {
 	px.me = me
 
 	// Your initialization code here.
-  px.min_instance = 0
-  px.max_instance = 0
-  px.done = 0
-  px.status = make(map[int]*Status)
+	px.min_instance = 0
+	px.max_instance = 0
+	px.done = 0
+	px.status = make(map[int]*Status)
 
 	if rpcs != nil {
 		// caller will create socket &c
