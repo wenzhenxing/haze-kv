@@ -33,6 +33,7 @@ import "math/rand"
 
 //import "errors"
 import "time"
+import "strconv"
 
 // px.Status() return values, indicating
 // whether an agreement has been decided,
@@ -48,12 +49,13 @@ const (
 
 type Status struct {
 	status       Fate
-	bidding      int
-	accept_value interface{}
+  N_p int
+  N_a int
+  N_v interface{}
 }
 
 func Status_new() *Status {
-	return &Status{Pending, -1, nil}
+	return &Status{Pending, -1, -1, nil}
 }
 
 type Paxos struct {
@@ -122,34 +124,36 @@ type PrepareArgs struct {
 
 type PrepareReply struct {
 	Err            int
+  Succ bool
 	Accept_bidding int
 	Accept_Value   interface{}
 }
 
 func (px *Paxos) Prepare_handler(args *PrepareArgs, reply *PrepareReply) error {
-	px.mu.Lock()
+  px.mu.Lock()
+  defer px.mu.Unlock()
 	px.Prepare_handler_local(args, reply)
-	px.mu.Unlock()
 	return nil
 }
 
 func (px *Paxos) Prepare_handler_local(args *PrepareArgs, reply *PrepareReply) {
-	fmt.Printf("[Instance %v Prepare_handler] [Paxos-%v] Do prepare request bidding:%v from:[Paxos %v]\n", args.Seq, px.me, args.Bidding, args.From)
+	fmt.Printf("[Instance %v Prepare_handler Paxos-%v] Do prepare request bidding:%v from:[Paxos %v]\n", args.Seq, px.me, args.Bidding, args.From)
 	s, ok := px.status[args.Seq]
 	if !ok {
 		px.status[args.Seq] = Status_new()
 		s = px.status[args.Seq]
 	}
-  fmt.Printf("[Instance %v Prepare_handler][Paxos-%v] prev proposal bidding:%v value:%v\n", args.Seq, px.me, s.bidding, s.accept_value)
-	if args.Bidding > s.bidding {
-    fmt.Printf("[Instance %v Prepare_handler][Paxos-%v] requtest bidding %v > prev bidding %v\n", args.Seq, px.me,args.Bidding, s.accept_value)
-		s.bidding = args.Bidding
-	  reply.Accept_bidding = s.bidding
-	  reply.Accept_Value = s.accept_value
+	if args.Bidding > s.N_p {
+    fmt.Printf("[Instance %v Prepare_handler_OK Paxos-%v] old_bidding:%v old_value:%v   new_bidding:%v\n", args.Seq, px.me, s.N_p, s.N_v, args.Bidding)
+		s.N_p = args.Bidding
+	  reply.Accept_bidding = s.N_a
+	  reply.Accept_Value = s.N_v
 		reply.Err = OK
+    reply.Succ = true
 	} else {
-    reply.Accept_bidding = s.bidding
+    reply.Accept_bidding = s.N_a
 		reply.Err = Reject
+    reply.Succ = false
 	}
 }
 
@@ -160,34 +164,46 @@ func (px *Paxos) Prepare(seq int, bidding int, v interface{}) (interface{}, int)
 	fmt.Printf("[Instance %v Prepare_Start Paxos-%v] Broadcast Prepare bidding:%v value:%v\n", seq, px.me, bidding, v)
 	recieved_num := 0
 	cur_value := v
-	max_bidding := bidding
-	for idx, p := range px.peers {
+	max_bidding := -1
+  succ := []int{}
+  for idx:=0; idx < len(px.peers); idx++ {
+    p := px.peers[idx]
 		args := &PrepareArgs{px.me, seq, bidding}
 		var reply PrepareReply
+    reply.Succ = false
 		if idx == px.me {
-			px.mu.Lock()
+      px.mu.Lock()
 			px.Prepare_handler_local(args, &reply)
-			px.mu.Unlock()
+      px.mu.Unlock()
 		} else {
 			call(p, "Paxos.Prepare_handler", args, &reply)
 		}
+    if reply.Succ {
+      succ = append(succ, idx)
+      recieved_num++
+    }
 		switch reply.Err {
 		case OK:
-			recieved_num++
-        fmt.Printf("[Instance %v Prepare_recieve Paxos-%v] get a promise. accept_value:%v accept_bidding:%v\n", seq, idx, reply.Accept_Value, reply.Accept_bidding)
 			if reply.Accept_Value != nil && reply.Accept_bidding > max_bidding {
 				max_bidding = reply.Accept_bidding
 				cur_value = reply.Accept_Value
 			}
 		case Reject:
 			fmt.Printf("[Instance %v Prepare_recieve Paxos-%v] Reject prepare since it has a high bidding %v than %v\n", seq, idx, reply.Accept_bidding, bidding)
-      //return nil, Reject
 		default:
 		}
 	}
+
+  ss := ""
+  for _, s := range succ {
+    ss = ss + strconv.Itoa(s)+" "
+  }
+  fmt.Printf("[Instance %v Prepare_Finished Paxos-%v] Poxos %v proposal\n", seq, px.me, ss)
+
+
 	if recieved_num > len(px.peers)/2 {
 		if cur_value != v {
-			fmt.Printf("[Instance %v Prepare_Betray Paxos-%v] Change Value %v to %v\n", seq, v, px.me, cur_value)
+			fmt.Printf("[Instance %v Prepare_Betray Paxos-%v] Change Value %v to %v\n", seq, px.me, v, cur_value)
 		}
 		return cur_value, OK
 	} else {
@@ -204,13 +220,14 @@ type AcceptArgs struct {
 
 type AcceptReply struct {
 	Err     int
+  Succ bool
 	Bidding int
 }
 
 func (px *Paxos) Accept_handler(args *AcceptArgs, reply *AcceptReply) error {
-	px.mu.Lock()
+  px.mu.Lock()
+  defer px.mu.Unlock()
 	px.Accept_handler_local(args, reply)
-	px.mu.Unlock()
 	return nil
 }
 
@@ -221,40 +238,55 @@ func (px *Paxos) Accept_handler_local(args *AcceptArgs, reply *AcceptReply) {
 		s = Status_new()
 		px.status[args.Seq] = s
 	}
-  reply.Bidding = s.bidding
-  if args.Bidding >= s.bidding {
+  if args.Bidding >= s.N_p {
     reply.Err = OK
-		s.bidding = args.Bidding
-		s.accept_value = args.Value
+    reply.Succ = true
+		s.N_a = args.Bidding
+    s.N_p = args.Bidding
+		s.N_v = args.Value
+    fmt.Printf("[Instance %v Accept_handler_OK Paxos-%v] accept value%v\n", args.Seq, px.me, s.N_v)
 	}else {
     reply.Err = Reject
+    reply.Succ = false
   }
+  reply.Bidding = s.N_p
 }
 
 func (px *Paxos) Accept(seq int, bidding int, v interface{}) (interface{}, int) {
 	fmt.Printf("[Instance %v Accept_Start][Paxos %v] Broadcast to all bidding:%v value:%v\n", seq, px.me, bidding, v)
 	recieved_num := 0
-	for idx, p := range px.peers {
+  succ := []int{}
+  for idx:=0; idx < len(px.peers); idx++ {
+    p := px.peers[idx]
 		args := &AcceptArgs{px.me, seq, bidding, v}
 		var reply AcceptReply
+    reply.Succ =false
 		if idx == px.me {
-			px.mu.Lock()
+      px.mu.Lock()
 			px.Accept_handler_local(args, &reply)
-			px.mu.Unlock()
+      px.mu.Unlock()
 		} else {
 			call(p, "Paxos.Accept_handler", args, &reply)
 		}
+    if reply.Succ {
+      recieved_num++
+      succ = append(succ, idx)
+    }
 		switch reply.Err {
 		case OK:
-			recieved_num++
-      //if reply.Bidding > bidding {
-      //  return nil, Reject
-      //}
+      if reply.Bidding > bidding {
+        bidding = reply.Bidding
+      }
     case Reject:
-			//return nil, Reject
 		default:
 		}
 	}
+
+  ss := ""
+  for _, s := range succ {
+    ss = ss+strconv.Itoa(s)+" "
+  }
+  fmt.Printf("[Instance %v Accept_Finished Paxos-%v] Paxos %s Accepted value %v\n", seq, px.me, ss, v)
 	if recieved_num > len(px.peers)/2 {
 		return v, OK
 	}
@@ -273,9 +305,9 @@ type LearnReply struct {
 }
 
 func (px *Paxos) Learn_handler(args *LearnArgs, reply *LearnReply) error {
-	px.mu.Lock()
+  px.mu.Lock()
+  defer px.mu.Unlock()
 	px.Learn_handler_local(args, reply)
-	px.mu.Unlock()
 	return nil
 }
 
@@ -286,8 +318,8 @@ func (px *Paxos) Learn_handler_local(args *LearnArgs, reply *LearnReply) {
 		px.status[args.Seq] = Status_new()
 		s = px.status[args.Seq]
 	}
-	s.bidding = args.Bidding
-	s.accept_value = args.Value
+	s.N_a = args.Bidding
+	s.N_v = args.Value
 	s.status = Decided
 	if args.Seq > px.max_instance {
 		fmt.Printf("[Instance %v Learn_handler Paxos-%v] Change the max_instance %v to %v\n", args.Seq, px.me, px.max_instance, args.Seq)
@@ -300,13 +332,14 @@ func (px *Paxos) Learn_handler_local(args *LearnArgs, reply *LearnReply) {
 func (px *Paxos) Learn(seq int, bidding int, v interface{}) int {
 	fmt.Printf("[Instance %v Learn_Start Paxos-%v]Broadcast learn to all bidding:%v, value:%v\n", seq, px.me, bidding, v)
 	recieved_num := 0
-	for idx, p := range px.peers {
+  for idx:=0; idx<len(px.peers); idx++{
+    p := px.peers[idx]
 		args := &LearnArgs{px.me, seq, bidding, v}
 		var reply LearnReply
 		if idx == px.me {
-			px.mu.Lock()
+      px.mu.Lock()
 			px.Learn_handler_local(args, &reply)
-			px.mu.Unlock()
+      px.mu.Unlock()
 		} else {
 			call(p, "Paxos.Learn_handler", args, &reply)
 		}
@@ -333,16 +366,11 @@ func (px *Paxos) Instance(seq int, bidding int, v interface{}) Fate {
 		px.mu.Unlock()
 		return Decided
 	}
-	if s.bidding > bidding {
-		fmt.Printf("[Instance %v] Paxos-%v Reject. current bidding:%v, your bidding:%v\n", seq, px.me, s.bidding, bidding)
-		px.mu.Unlock()
-		return Pending
-	}
 	px.mu.Unlock()
 	value, err_p := px.Prepare(seq, bidding, v)
 	switch err_p {
 	case OK:
-		fmt.Printf("[Instance %v Prepare_OK Paxos-%v] Proposal value:%v\n", seq, px.me, value)
+    fmt.Printf("[Instance %v Prepare_OK Paxos-%v] Proposal value:%v with bidding:%v\n", seq, px.me, value, bidding)
 	case NotMajority:
 		fmt.Printf("[Instance %v Prepare_FAIL Paxos-%v] Not recieve enough promise\n", seq, px.me)
 		return Pending
@@ -354,7 +382,6 @@ func (px *Paxos) Instance(seq int, bidding int, v interface{}) Fate {
 	choosen_value, err_a := px.Accept(seq, bidding, value)
 	switch err_a {
 	case OK:
-		fmt.Printf("[Instance %v Accept_OK Paxos-%v]get Majority Choosen value:%v\n", seq, px.me, choosen_value)
 	case NotMajority:
 		fmt.Printf("[Instance %v Accept_No Paxos-%v] Not recieve enough acception\n", seq, px.me)
 		return Pending
@@ -592,7 +619,7 @@ func (px *Paxos) Status(seq int) (Fate, interface{}) {
 	if !ok {
 		px.status[seq] = Status_new()
 	} else {
-		return s.status, s.accept_value
+		return s.status, s.N_v
 	}
 	return Pending, nil
 }
