@@ -113,6 +113,7 @@ func noTestSpeed(t *testing.T) {
 	fmt.Printf("20 agreements %v seconds\n", d.Seconds())
 }
 
+/*
 func TestBasic(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -456,7 +457,6 @@ func TestForgetMem(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 //
 // does Max() work after Done()s?
@@ -713,7 +713,7 @@ func TestManyUnreliable(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-
+*/
 func pp(tag string, src int, dst int) string {
 	s := "/var/tmp/824-"
 	s += strconv.Itoa(os.Getuid()) + "/"
@@ -755,6 +755,7 @@ func part(t *testing.T, tag string, npaxos int, p1 []int, p2 []int, p3 []int) {
 	}
 }
 
+/*
 func TestPartition(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -853,6 +854,7 @@ func TestPartition(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
+*/
 
 func TestLots(t *testing.T) {
 	runtime.GOMAXPROCS(4)
