@@ -62,9 +62,9 @@ func waitn(t *testing.T, pxa []*Paxos, seq int, wanted int) {
 	nd := ndecided(t, pxa, seq)
 	if nd < wanted {
 		t.Fatalf("too few decided; seq=%v ndecided=%v wanted=%v", seq, nd, wanted)
-	}else {
-    fmt.Printf("seq=%v, ndecided=%v wanted=%v\n", seq, nd, wanted)
-  }
+	} else {
+		fmt.Printf("seq=%v, ndecided=%v wanted=%v\n", seq, nd, wanted)
+	}
 }
 
 func waitmajority(t *testing.T, pxa []*Paxos, seq int) {
@@ -113,7 +113,6 @@ func noTestSpeed(t *testing.T) {
 	fmt.Printf("20 agreements %v seconds\n", d.Seconds())
 }
 
-/*
 func TestBasic(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -457,6 +456,7 @@ func TestForgetMem(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
+*/
 
 //
 // does Max() work after Done()s?
@@ -713,7 +713,7 @@ func TestManyUnreliable(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
+
 func pp(tag string, src int, dst int) string {
 	s := "/var/tmp/824-"
 	s += strconv.Itoa(os.Getuid()) + "/"
