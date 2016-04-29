@@ -3,6 +3,8 @@ package kvpaxos
 import "net/rpc"
 import "crypto/rand"
 import "math/big"
+import "time"
+import mrand "math/rand"
 
 import "fmt"
 
@@ -43,7 +45,7 @@ func MakeClerk(servers []string) *Clerk {
 // please don't change this function.
 //
 func call(srv string, rpcname string,
-	args interface{}, reply interface{}) bool {
+args interface{}, reply interface{}) bool {
 	c, errx := rpc.Dial("unix", srv)
 	if errx != nil {
 		return false
@@ -66,7 +68,18 @@ func call(srv string, rpcname string,
 //
 func (ck *Clerk) Get(key string) string {
 	// You will have to modify this function.
-	return ""
+	args := &GetArgs{key}
+	var reply GetReply
+	for {
+		server := ck.servers[mrand.Int() % len(ck.servers)]
+		ok := call(server, "KVPaxos.Get", args, &reply)
+		if ok && reply.Err == "" {
+			break
+		}
+		reply.Err = ""
+		time.Sleep(time.Millisecond * 100)
+	}
+	return reply.Value
 }
 
 //
@@ -74,6 +87,16 @@ func (ck *Clerk) Get(key string) string {
 //
 func (ck *Clerk) PutAppend(key string, value string, op string) {
 	// You will have to modify this function.
+	args := &PutAppendArgs{key, value, op}
+	for {
+		var reply PutAppendReply
+		server := ck.servers[mrand.Int() % len(ck.servers)]
+		ok := call(server, "KVPaxos.PutAppend", args, &reply)
+		if ok && reply.Err == "" {
+			return
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
 }
 
 func (ck *Clerk) Put(key string, value string) {

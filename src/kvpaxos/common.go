@@ -5,6 +5,12 @@ const (
 	ErrNoKey = "ErrNoKey"
 )
 
+const (
+	OP_GET    = "GET"
+	OP_APPEND = "APPEND"
+	OP_PUT    = "PUT"
+)
+
 type Err string
 
 // Put or Append

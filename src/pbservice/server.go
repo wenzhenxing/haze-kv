@@ -86,12 +86,12 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 		}
 	default:
 	}
-	//check connect between server and viewserver
+	// check connect between server and viewserver
 	if pb.stop {
 		reply.Err = ErrUnReliable
 		return nil
 	}
-	//filter all duplicated request
+	// filter all duplicated request
 	if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
 		reply.Err = ErrDuplicated
 		log.Printf("[DUPLICATED][server %v] respons PutAppend(%v)-%v from %v server_rpc_id:%v, client_rpc_id:%v",
@@ -134,7 +134,7 @@ func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error 
 func (pb *PBServer) Copy(args *CopyArgs, reply *CopyReply) error {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
-	//filter the duplicated request
+	// filter the duplicated request
 	if pb.last_rpc[args.From] != 0 && args.Rpc_id <= pb.last_rpc[args.From] {
 		reply.Err = ErrDuplicated
 		log.Printf("[DUPLICATED][server %v] Copy request duplicated primary_rpc_id:%v, backup_rpc_id:%v",
@@ -142,7 +142,7 @@ func (pb *PBServer) Copy(args *CopyArgs, reply *CopyReply) error {
 		return nil
 	}
 
-	//check wheather match viewserver
+	// check wheather match viewserver
 	if pb.me != pb.myView.Backup {
 		reply.Err = ErrWrongServer
 		return nil

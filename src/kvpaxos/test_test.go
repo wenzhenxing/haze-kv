@@ -7,8 +7,9 @@ import "os"
 import "time"
 import "fmt"
 import "math/rand"
-import "strings"
-import "sync/atomic"
+
+//import "strings"
+//import "sync/atomic"
 
 func check(t *testing.T, ck *Clerk, key string, value string) {
 	v := ck.Get(key)
@@ -113,6 +114,8 @@ func TestBasic(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 }
+
+/**
 
 func TestDone(t *testing.T) {
 	runtime.GOMAXPROCS(4)
@@ -709,3 +712,4 @@ func TestManyPartition(t *testing.T) {
 		fmt.Printf("  ... Passed\n")
 	}
 }
+*/
