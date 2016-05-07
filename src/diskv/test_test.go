@@ -431,7 +431,9 @@ func doConcurrent(t *testing.T, unreliable bool) {
 		ca[i] = make(chan bool)
 		go func(me int) {
 			ok := true
-			defer func() { ca[me] <- ok }()
+			defer func() {
+				ca[me] <- ok
+			}()
 			ck := tc.clerk()
 			mymck := tc.shardclerk()
 			key := strconv.Itoa(me)
@@ -998,7 +1000,9 @@ func doConcurrentCrash(t *testing.T, unreliable bool) {
 
 	ff := func(me int, ch chan int) {
 		ret := -1
-		defer func() { ch <- ret }()
+		defer func() {
+			ch <- ret
+		}()
 		myck := tc.clerk()
 		n := 0
 		for atomic.LoadInt32(&stop) == 0 || n < 5 {
@@ -1099,7 +1103,9 @@ func Test5Simultaneous(t *testing.T) {
 
 	ff := func(x int) {
 		ret := -1
-		defer func() { ch <- ret }()
+		defer func() {
+			ch <- ret
+		}()
 		myck := tc.clerk()
 		myck.Append(k1, "x "+strconv.Itoa(0)+" "+strconv.Itoa(x)+" y")
 		ret = 1
@@ -1262,9 +1268,15 @@ func Test5RejoinMix3(t *testing.T) {
 	chx := make(chan bool)
 	x1 := randstring(10)
 	x2 := randstring(10)
-	go func() { ck.Append(k1, x1); chx <- true }()
+	go func() {
+		ck.Append(k1, x1)
+		chx <- true
+	}()
 	time.Sleep(10 * time.Millisecond)
-	go func() { ck.Append(k1, x2); chx <- true }()
+	go func() {
+		ck.Append(k1, x2)
+		chx <- true
+	}()
 
 	<-chx
 	<-chx

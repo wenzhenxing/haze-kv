@@ -222,7 +222,9 @@ func TestBasic(t *testing.T) {
 		gids[xi] = int64(xi + 1)
 		ca[xi] = make(chan bool)
 		go func(i int) {
-			defer func() { ca[i] <- true }()
+			defer func() {
+				ca[i] <- true
+			}()
 			var gid int64 = gids[i]
 			cka[(i+0)%nservers].Join(gid+1000, []string{"a", "b", "c"})
 			cka[(i+0)%nservers].Join(gid, []string{"a", "b", "c"})
@@ -318,7 +320,9 @@ func TestUnreliable(t *testing.T) {
 		gids[xi] = int64(xi + 1)
 		ca[xi] = make(chan bool)
 		go func(i int) {
-			defer func() { ca[i] <- true }()
+			defer func() {
+				ca[i] <- true
+			}()
 			var gid int64 = gids[i]
 			cka[1+(rand.Int()%2)].Join(gid+1000, []string{"a", "b", "c"})
 			cka[1+(rand.Int()%2)].Join(gid, []string{"a", "b", "c"})

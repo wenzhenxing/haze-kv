@@ -358,6 +358,7 @@ func (px *Paxos) Instance(seq int, bidding int, v interface{}) Fate {
 	px.mu.Lock()
 	if seq < px.min_instance {
 		px.mu.Unlock()
+		fmt.Printf("[Instance %v] Forgotten seq %d\n", px.me, seq)
 		return Forgotten
 	}
 	s, ok := px.status[seq]
@@ -412,13 +413,16 @@ func (px *Paxos) Instance(seq int, bidding int, v interface{}) Fate {
 func (px *Paxos) Start(seq int, v interface{}) {
 	// Your code here.
 	go func() {
+		fmt.Printf("[Paxos %d Start] try to get the lock\n", px.me)
 		px.mu.Lock()
 		if px.status[seq] == nil {
 			px.status[seq] = Status_new()
 		}
 		if px.status[seq].status == Decided {
+			px.mu.Unlock()
 			return
 		}
+		fmt.Printf("[Paxos %d Start] Release lock\n", px.me)
 		px.mu.Unlock()
 		bidding := 0
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -539,6 +543,7 @@ func (px *Paxos) Done(seq int) {
 	}
 	//GC
 	get_all = true
+	fmt.Printf("[Paxos %d] peers size=%d\n", px.me, len(px.peers))
 	for idx, p := range px.peers {
 		args := &GCArgs{idx, seq, px.min_instance}
 		var reply GCReply
@@ -552,6 +557,7 @@ func (px *Paxos) Done(seq int) {
 	if !get_all {
 		fmt.Printf("[GC] Not gc all\n")
 	}
+	fmt.Printf("[Paxos %d] Done finished\n", px.me)
 }
 
 //

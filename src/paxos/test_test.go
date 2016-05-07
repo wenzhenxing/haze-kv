@@ -886,7 +886,9 @@ func TestLots(t *testing.T) {
 	// re-partition periodically
 	ch1 := make(chan bool)
 	go func() {
-		defer func() { ch1 <- true }()
+		defer func() {
+			ch1 <- true
+		}()
 		for atomic.LoadInt32(&done) == 0 {
 			var a [npaxos]int
 			for i := 0; i < npaxos; i++ {
@@ -911,7 +913,9 @@ func TestLots(t *testing.T) {
 	// periodically start a new instance
 	ch2 := make(chan bool)
 	go func() {
-		defer func() { ch2 <- true }()
+		defer func() {
+			ch2 <- true
+		}()
 		for atomic.LoadInt32(&done) == 0 {
 			// how many instances are in progress?
 			nd := 0
@@ -934,7 +938,9 @@ func TestLots(t *testing.T) {
 	// periodically check that decisions are consistent
 	ch3 := make(chan bool)
 	go func() {
-		defer func() { ch3 <- true }()
+		defer func() {
+			ch3 <- true
+		}()
 		for atomic.LoadInt32(&done) == 0 {
 			for i := 0; i < int(atomic.LoadInt32(&seq)); i++ {
 				ndecided(t, pxa, i)

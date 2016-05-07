@@ -59,8 +59,8 @@ type MapReduce struct {
 	file          string // Name of input file
 	MasterAddress string
 	/*
-	 * If Worker regist through rpc,
-	 * this chan will add corresponding Worker name.
+	* If Worker regist through rpc,
+	* this chan will add corresponding Worker name.
 	 */
 	registerChannel chan string
 	DoneChannel     chan bool
@@ -200,7 +200,8 @@ func (mr *MapReduce) Split(fileName string) {
 	i := 0
 
 	scanner := bufio.NewScanner(infile)
-	for scanner.Scan() { //line by line scan
+	for scanner.Scan() {
+		//line by line scan
 		if int64(i) > nchunk*int64(m) {
 			writer.Flush()
 			outfile.Close()

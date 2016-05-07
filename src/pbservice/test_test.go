@@ -483,7 +483,9 @@ func TestConcurrentSameAppend(t *testing.T) {
 	// code for i'th concurrent client thread.
 	ff := func(i int, ch chan int) {
 		ret := -1
-		defer func() { ch <- ret }()
+		defer func() {
+			ch <- ret
+		}()
 		ck := MakeClerk(vshost, "client"+strconv.Itoa(i))
 		n := 0
 		for n < 50 {
@@ -602,7 +604,9 @@ func TestConcurrentSameUnreliable(t *testing.T) {
 		cha = append(cha, make(chan bool))
 		go func(i int, ch chan bool) {
 			ok := false
-			defer func() { ch <- ok }()
+			defer func() {
+				ch <- ok
+			}()
 			ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 			rr := rand.New(rand.NewSource(int64(os.Getpid() + i)))
 			for atomic.LoadInt32(&done) == 0 {
@@ -730,7 +734,9 @@ func TestRepeatedCrash(t *testing.T) {
 		cha[xi] = make(chan bool)
 		go func(i int) {
 			ok := false
-			defer func() { cha[i] <- ok }()
+			defer func() {
+				cha[i] <- ok
+			}()
 			ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 			data := map[string]string{}
 			rr := rand.New(rand.NewSource(int64(os.Getpid() + i)))
@@ -840,7 +846,9 @@ func TestRepeatedCrashUnreliable(t *testing.T) {
 	// concurrent client thread.
 	ff := func(i int, ch chan int) {
 		ret := -1
-		defer func() { ch <- ret }()
+		defer func() {
+			ch <- ret
+		}()
 		ck := MakeClerk(vshost, "C"+strconv.Itoa(i))
 		n := 0
 		for atomic.LoadInt32(&done) == 0 {
@@ -1000,7 +1008,9 @@ func TestPartition1(t *testing.T) {
 	stale_get := make(chan bool)
 	go func() {
 		local_stale := false
-		defer func() { stale_get <- local_stale }()
+		defer func() {
+			stale_get <- local_stale
+		}()
 		x := ck1.Get("a")
 		if x == "1" {
 			local_stale = true
@@ -1093,7 +1103,9 @@ func TestPartition2(t *testing.T) {
 	stale_get := make(chan bool)
 	go func() {
 		local_stale := false
-		defer func() { stale_get <- local_stale }()
+		defer func() {
+			stale_get <- local_stale
+		}()
 		x := ck1.Get("a")
 		if x == "1" {
 			local_stale = true

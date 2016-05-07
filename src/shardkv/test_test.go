@@ -315,7 +315,9 @@ func doConcurrent(t *testing.T, unreliable bool) {
 		ca[i] = make(chan bool)
 		go func(me int) {
 			ok := true
-			defer func() { ca[me] <- ok }()
+			defer func() {
+				ca[me] <- ok
+			}()
 			ck := tc.clerk()
 			mymck := tc.shardclerk()
 			key := strconv.Itoa(me)

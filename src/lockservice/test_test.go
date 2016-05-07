@@ -250,7 +250,9 @@ func TestPrimaryFail7(t *testing.T) {
 	ch := make(chan bool)
 	go func() {
 		ok := false
-		defer func() { ch <- ok }()
+		defer func() {
+			ch <- ok
+		}()
 		tu(t, ck2, "b", true) // 2 second delay until retry
 		ok = true
 	}()
@@ -288,7 +290,9 @@ func TestPrimaryFail8(t *testing.T) {
 	ch := make(chan bool)
 	go func() {
 		ok := false
-		defer func() { ch <- ok }()
+		defer func() {
+			ch <- ok
+		}()
 		tu(t, ck2, "a", false) // 2 second delay until retry
 		ok = true
 	}()
