@@ -1,14 +1,14 @@
 package kvpaxos
 
-import "testing"
-import "runtime"
-import "strconv"
-import "os"
-
-//import "time"
-import "fmt"
-
-//import "math/rand"
+import (
+	"fmt"
+	//"math/rand"
+	"os"
+	"runtime"
+	"strconv"
+	"testing"
+	//"time"
+)
 
 //import "strings"
 //import "sync/atomic"
@@ -69,54 +69,56 @@ func TestBasic(t *testing.T) {
 
 	ck.Append("app", "x")
 	ck.Append("app", "y")
-	//check(t, ck, "app", "xy")
-	//
-	//ck.Put("a", "aa")
-	//check(t, ck, "a", "aa")
-	//
-	//cka[1].Put("a", "aaa")
-	//
-	//check(t, cka[2], "a", "aaa")
-	//check(t, cka[1], "a", "aaa")
-	//check(t, ck, "a", "aaa")
-	//
-	//fmt.Printf("  ... Passed\n")
-	//
-	//fmt.Printf("Test: Concurrent clients ...\n")
-	//
-	//for iters := 0; iters < 20; iters++ {
-	//	const npara = 15
-	//	var ca [npara]chan bool
-	//	for nth := 0; nth < npara; nth++ {
-	//		ca[nth] = make(chan bool)
-	//		go func(me int) {
-	//			defer func() {
-	//				ca[me] <- true
-	//			}()
-	//			ci := (rand.Int() % nservers)
-	//			myck := MakeClerk([]string{kvh[ci]}, nth)
-	//			if (rand.Int() % 1000) < 500 {
-	//				myck.Put("b", strconv.Itoa(rand.Int()))
-	//			} else {
-	//				myck.Get("b")
-	//			}
-	//		}(nth)
-	//	}
-	//	for nth := 0; nth < npara; nth++ {
-	//		<-ca[nth]
-	//	}
-	//	var va [nservers]string
-	//	for i := 0; i < nservers; i++ {
-	//		va[i] = cka[i].Get("b")
-	//		if va[i] != va[0] {
-	//			t.Fatalf("mismatch")
-	//		}
-	//	}
-	//}
-	//
-	//fmt.Printf("  ... Passed\n")
-	//
-	//time.Sleep(1 * time.Second)
+	check(t, ck, "app", "xy")
+
+	ck.Put("a", "aa")
+	check(t, ck, "a", "aa")
+
+	cka[1].Put("a", "aaa")
+
+	check(t, cka[2], "a", "aaa")
+	check(t, cka[1], "a", "aaa")
+	check(t, ck, "a", "aaa")
+
+	fmt.Printf("  ... Passed\n")
+
+	/**
+	fmt.Printf("Test: Concurrent clients ...\n")
+
+	for iters := 0; iters < 20; iters++ {
+		const npara = 15
+		var ca [npara]chan bool
+		for nth := 0; nth < npara; nth++ {
+			ca[nth] = make(chan bool)
+			go func(me int) {
+				defer func() {
+					ca[me] <- true
+				}()
+				ci := (rand.Int() % nservers)
+				myck := MakeClerk([]string{kvh[ci]}, nth)
+				if (rand.Int() % 1000) < 500 {
+					myck.Put("b", strconv.Itoa(rand.Int()))
+				} else {
+					myck.Get("b")
+				}
+			}(nth)
+		}
+		for nth := 0; nth < npara; nth++ {
+			<-ca[nth]
+		}
+		var va [nservers]string
+		for i := 0; i < nservers; i++ {
+			va[i] = cka[i].Get("b")
+			if va[i] != va[0] {
+				t.Fatalf("mismatch")
+			}
+		}
+	}
+
+	fmt.Printf("  ... Passed\n")
+
+	time.Sleep(1 * time.Second)
+	*/
 }
 
 /**

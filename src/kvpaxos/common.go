@@ -1,14 +1,28 @@
 package kvpaxos
 
+import "fmt"
+import "strconv"
+
+const Debug = 1
+
+func DPrintf(format string, a ...interface{}) (n int, err error) {
+	if Debug > 0 {
+		fmt.Printf(format, a...)
+	}
+	return
+}
+
+func ERROR(format string, a ...interface{}) {
+	fmt.Printf(format, a)
+}
+
+func int642string(i int64)string{
+	return strconv.FormatInt(i, 10)
+}
+
 const (
 	OK       = "OK"
 	ErrNoKey = "ErrNoKey"
-)
-
-const (
-	OP_GET    = "GET"
-	OP_APPEND = "APPEND"
-	OP_PUT    = "PUT"
 )
 
 type Err string

@@ -2,7 +2,6 @@ package kvpaxos
 
 import (
 	"encoding/gob"
-	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -15,41 +14,6 @@ import (
 	"time"
 )
 
-const Debug = 0
-
-func DPrintf(format string, a ...interface{}) (n int, err error) {
-	if Debug > 0 {
-		log.Printf(format, a...)
-	}
-	return
-}
-
-type Op struct {
-	// Your definitions here.
-	// Field names must start with capital letters,
-	// otherwise RPC will break.
-	Operation string
-	Args      interface{}
-	ResChan   chan interface{}
-	Token     int64
-}
-
-func (this *Op) toString() string {
-	switch this.Operation {
-	case OP_GET:
-		args := this.Args.(*GetArgs)
-		return "op:GET key:" + args.Key
-	case OP_APPEND:
-		args := this.Args.(*PutAppendArgs)
-		return "op:APPEND key:" + args.Key + " value:" + args.Value
-	case OP_PUT:
-		args := this.Args.(*PutAppendArgs)
-		return "op:PUT key:" + args.Key + " value:" + args.Value
-	default:
-	}
-	return ""
-}
-
 type KVPaxos struct {
 	mu         sync.Mutex
 	l          net.Listener
@@ -60,31 +24,37 @@ type KVPaxos struct {
 
 	// Your definitions here.
 	data   map[string]string
-	opChan chan *Op
+	opChan chan Op
 	curSeq int
 }
 
-func (kv *KVPaxos) loop() {
-	fmt.Printf("[Server %d loop] start\n", kv.me)
+func (kv *KVPaxos) handleOp() {
+	DPrintf("[Server %d loop] start\n", kv.me)
 	for !kv.isdead() {
 		select {
 		case op := <-kv.opChan:
-			fmt.Printf("[Server %d loop] handle a op [%s]\n", kv.me, op.toString())
-			kv.doPaxos(op)
-			fmt.Printf("[Server %d loop] finished a op [%s]\n", kv.me, op.toString())
+			DPrintf("[Server %d handleOp] handle a op [%s]\n", kv.me, op.toString())
+			kv.sync(op)
+			DPrintf("[Server %d handleOp] finished op [%s]\n", kv.me, op.toString())
 		}
 	}
 }
 
 func (kv *KVPaxos) waitPaxosDecided(seq int) interface{} {
-	fmt.Printf("[Server %d waitPaxosDecided] start with %d\n", kv.me, seq)
+	DPrintf("[Server %d waitPaxosDecided] start with %d\n", kv.me, seq)
 	to := 10 * time.Millisecond
 	for {
 		fate, v := kv.px.Status(seq)
-		fmt.Printf("[Server %d waitPaxosDecided] get fate=%v\n", kv.me, fate)
+		DPrintf("[Server %d waitPaxosDecided] get fate=%v\n", kv.me, fate)
 		if fate == paxos.Decided {
-			fmt.Printf("[Server %d waitPaxosDecided] finished. value=  %V\n", kv.me, v)
-			return v
+			switch _v := v.(type) {
+			case Op:
+				DPrintf("[Server %d waitPaxosDecided] finished. value=%s\n",
+					kv.me, _v.toString())
+				return v
+			default:
+				ERROR("impossible\n")
+			}
 		}
 		time.Sleep(to)
 		if to < 10*time.Second {
@@ -93,112 +63,115 @@ func (kv *KVPaxos) waitPaxosDecided(seq int) interface{} {
 	}
 }
 
-func (kv *KVPaxos) handleResponse(op *Op, need_sync bool) {
-	fmt.Printf("[Server %d handleResponse] need_sync=%v [%s]\n", kv.me, need_sync,
-		op.toString())
-	switch op.Operation {
-	case OP_GET:
-		fmt.Printf("[Server %d handleResponse] handle OP_GET\n", kv.me)
-		args := op.Args.(*GetArgs)
-		if v, ok := kv.data[args.Key]; ok {
-			op.ResChan <- v
+/**
+ * do the op
+
+ * @op the operation to do
+ * @return the value if the op is GetOp, otherwise nil
+ */
+func (kv *KVPaxos) doOp(op Op) interface{} {
+	DPrintf("[Server %d doOp] Start op=%s\n", kv.me, op.toString())
+	switch e := op.(type) {
+	case *GetOp:
+		if v, ok := kv.data[e.Key]; ok {
+			DPrintf("[Server %d doOp] GetOp v=%s\n", kv.me, v)
+			return v
 		} else {
-			op.ResChan <- ErrNoKey
+			DPrintf("[Server %d doOp] GetOp v= ErrNoKey\n", kv.me)
+			return ErrNoKey
 		}
-	case OP_PUT:
-		fmt.Printf("[Server %d handleResponse] handle OP_PUT\n", kv.me)
-		args := op.Args.(*PutAppendArgs)
-		kv.data[args.Key] = args.Value
-		if !need_sync {
-			op.ResChan <- nil
-		}
-	case OP_APPEND:
-		fmt.Printf("[Server %d handleResponse] handle OP_APPEND\n", kv.me)
-		args := op.Args.(*PutAppendArgs)
-		_, ok := kv.data[args.Key]
+	case *PutOp:
+		kv.data[e.Key] = e.Value
+		DPrintf("[Server %d doOp] database update %s\n", kv.me,
+			kv.data[e.Key])
+		return nil
+	case *PutAppendOp:
+		_, ok := kv.data[e.Key]
 		if ok {
-			kv.data[args.Key] += args.Value
+			kv.data[e.Key] += e.Value
 		} else {
-			kv.data[args.Key] = args.Value
+			kv.data[e.Key] = e.Value
 		}
-		fmt.Printf("[Server %d handleResponse] database update %s\n", kv.me,
-			kv.data[args.Key])
-		if !need_sync {
-			op.ResChan <- nil
-			fmt.Printf("[Server %d handleResponse] set result nil to op.ResChan %v\n",
-				kv.me, op.ResChan)
-		}
-	default:
-		fmt.Printf("[ERROR handleResponse] op error\n")
+		return nil
+		DPrintf("[Server %d doOp] database update %s\n", kv.me,
+			kv.data[e.Key])
 	}
-	//fmt.Printf("[Server %d] handleResponse Done seq=%d\n", kv.me, kv.curSeq)
-	//kv.px.Done(kv.curSeq)
-	fmt.Printf("[Server %d handleResponse] finished\n", kv.me)
+	DPrintf("[Server %d doOp] finished\n", kv.me)
+	return nil
 }
 
-func (kv *KVPaxos) doPaxos(op *Op) {
-	need_sync := true
-	fmt.Printf("[Server %d doPaxos] start with seq=%d, op=%V start loop sync\n",
-		kv.me, kv.curSeq, op)
-	for !kv.isdead() && need_sync {
-		fmt.Printf("[Server %d doPaxos] loop sync start curSeq=%d\n", kv.me, kv.curSeq)
-		kv.px.Start(kv.curSeq, op)
-		v := kv.waitPaxosDecided(kv.curSeq).(*Op)
-		fmt.Printf("[Server %d doPaxos] get paxos v=%s\n", kv.me, v.toString())
-		if v.Token == op.Token {
-			fmt.Printf("[Server %d doPaxos] sync get the last\n", kv.me)
-			need_sync = false
-		}
-		kv.handleResponse(v, need_sync)
+/**
+ * sync the data to the lasted version
+ * 1. doPaxos to determine the op in current seq
+ * 2. doOp
+ * if the op reach the lasted op, set the ResChan, otherwise loop to sync
+ *
+ * @op the lasted op want to do
+ *
+ */
+func (kv *KVPaxos) sync(op Op) {
+	DPrintf("[Server %d sync] Start with op=%s\n", kv.me, op.toString())
+	for !kv.isdead() {
+		v := kv.doPaxos(op)
+		res := kv.doOp(v)
 		kv.curSeq++
+		if v.getToken() == op.getToken() {
+			DPrintf("[Server %d sync] reach the last op\n", kv.me)
+			DPrintf("[Server %d sync] set the ResChan v=%v\n", kv.me, res)
+			op.setResponse(res)
+			break
+		}
 	}
-	fmt.Printf("[Server %d doPaxos] finished loop sync curSeq=%d\n", kv.me,
-		kv.curSeq)
+	DPrintf("[Server %d sync] End\n", kv.me)
+}
+
+/**
+ *	do paxos to determine the op
+ *
+ * 	@op
+ *	@return the determined op
+ */
+func (kv *KVPaxos) doPaxos(op Op) Op {
+	DPrintf("[Server %d doPaxos] Start seq=%d, op=%s\n", kv.me, kv.curSeq, op.toString())
+	kv.px.Start(kv.curSeq, op)
+	v := kv.waitPaxosDecided(kv.curSeq).(Op)
+	DPrintf("[Server %d doPaxos] End get v=%s\n", kv.me, v.toString())
+	return v
 }
 
 func (kv *KVPaxos) Get(args *GetArgs, reply *GetReply) error {
 	// Your code here.
-	fmt.Printf("[Server %d Get] recieved Get request\n", kv.me)
-	op := &Op{
-		Operation: OP_GET,
-		Args:      args,
-		ResChan:   make(chan interface{}),
-		Token:     args.Token}
+	DPrintf("[Server %d Get] recieved Get request\n", kv.me)
+	op := GetOp_new(args.Key, args.Token)
 	kv.opChan <- op
-	fmt.Printf("[Server %d Get] wait result\n", kv.me)
-	v := <-op.ResChan
-	fmt.Printf("[Server %d Get] recieved result %v\n", kv.me, v)
+	DPrintf("[Server %d Get] wait result\n", kv.me)
+	v := op.getResponse()
+	DPrintf("[Server %d Get] recieved result %v\n", kv.me, v)
 	if err, ok := v.(Err); ok {
 		reply.Err = err
 	} else {
 		reply.Value = v.(string)
 	}
-
 	return nil
 }
 
 func (kv *KVPaxos) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error {
-	fmt.Printf("[Server %d PutAppend] recieved PutAppend request\n", kv.me)
+	DPrintf("[Server %d PutAppend] recieved PutAppend request\n", kv.me)
 	// Your code here.
-	var op string
+	var _op Op
 	switch args.Op {
 	case "Put":
-		op = OP_PUT
+		_op = PutOp_new(args.Key, args.Value, args.Token)
 	case "Append":
-		op = OP_APPEND
+		_op = PutAppendOp_new(args.Key, args.Value, args.Token)
 	default:
-		fmt.Printf("[Server %d PutAppend] op error\n", kv.me)
+		DPrintf("[Server %d PutAppend] op error\n", kv.me)
 	}
-	_op := &Op{
-		Operation: op,
-		Args:      args,
-		ResChan:   make(chan interface{}),
-		Token:     args.Token}
-	fmt.Printf("[Server %d PutAppend] PutAppend put op in chan\n", kv.me)
+	DPrintf("[Server %d PutAppend] PutAppend put op in chan\n", kv.me)
 	kv.opChan <- _op
-	fmt.Printf("[Server %d PutAppend] PutAppend wait ResChan\n", kv.me)
-	v := <-_op.ResChan
-	fmt.Printf("[Server %d PutAppend] get result %v\n", kv.me, v)
+	DPrintf("[Server %d PutAppend] PutAppend wait ResChan\n", kv.me)
+	v := _op.getResponse()
+	DPrintf("[Server %d PutAppend] get result %v\n", kv.me, v)
 	return nil
 }
 
@@ -236,10 +209,12 @@ func (kv *KVPaxos) isunreliable() bool {
 // me is the index of the current server in servers[].
 //
 func StartServer(servers []string, me int) *KVPaxos {
-	fmt.Printf("[Server %d StartServer] start\n", me)
+	DPrintf("[Server %d StartServer] start\n", me)
 	// call gob.Register on structures you want
 	// Go's RPC library to marshall/unmarshall.
-	gob.Register(&Op{})
+	gob.Register(&GetOp{})
+	gob.Register(&PutOp{})
+	gob.Register(&PutAppendOp{})
 	gob.Register(&PutAppendArgs{})
 	gob.Register(&GetArgs{})
 
@@ -248,8 +223,8 @@ func StartServer(servers []string, me int) *KVPaxos {
 
 	// Your initialization code here.
 	kv.data = make(map[string]string)
-	kv.opChan = make(chan *Op)
-	go kv.loop()
+	kv.opChan = make(chan Op)
+	go kv.handleOp()
 
 	rpcs := rpc.NewServer()
 	rpcs.Register(kv)
@@ -265,7 +240,6 @@ func StartServer(servers []string, me int) *KVPaxos {
 
 	// please do not change any of the following code,
 	// or do anything to subvert it.
-
 	go func() {
 		for kv.isdead() == false {
 			conn, err := kv.l.Accept()
@@ -279,7 +253,7 @@ func StartServer(servers []string, me int) *KVPaxos {
 					f, _ := c1.File()
 					err := syscall.Shutdown(int(f.Fd()), syscall.SHUT_WR)
 					if err != nil {
-						fmt.Printf("shutdown: %v\n", err)
+						DPrintf("shutdown: %v\n", err)
 					}
 					go rpcs.ServeConn(conn)
 				} else {
@@ -289,7 +263,7 @@ func StartServer(servers []string, me int) *KVPaxos {
 				conn.Close()
 			}
 			if err != nil && kv.isdead() == false {
-				fmt.Printf("KVPaxos(%v) accept: %v\n", me, err.Error())
+				DPrintf("KVPaxos(%v) accept: %v\n", me, err.Error())
 				kv.kill()
 			}
 		}
