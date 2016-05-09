@@ -159,7 +159,7 @@ func MapName(fileName string, MapJob int) string {
 // Split bytes of input file into nMap splits, but split only on white space
 func (mr *MapReduce) Split(fileName string) {
 	Logger.Printf("Split file:%s\n", fileName)
-	fmt.Printf("Split %s\n", fileName)
+	DPrintf("Split %s\n", fileName)
 	infile, err := os.Open(fileName)
 	if err != nil {
 		log.Fatal("Split: ", err)
@@ -410,7 +410,7 @@ func (mr *MapReduce) CleanupRegistration() {
 	var reply ShutdownReply
 	ok := call(mr.MasterAddress, "MapReduce.Shutdown", args, &reply)
 	if ok == false {
-		fmt.Printf("Cleanup: RPC %s error\n", mr.MasterAddress)
+		DPrintf("Cleanup: RPC %s error\n", mr.MasterAddress)
 	}
 	DPrintf("CleanupRegistration: done\n")
 }
@@ -424,7 +424,7 @@ func (mr *MapReduce) Run() {
 	mr.Merge()
 	mr.CleanupRegistration()
 
-	fmt.Printf("%s: MapReduce done\n", mr.MasterAddress)
+	DPrintf("%s: MapReduce done\n", mr.MasterAddress)
 
 	mr.DoneChannel <- true
 }

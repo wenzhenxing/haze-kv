@@ -1,6 +1,9 @@
 package viewservice
 
-import "time"
+import (
+	"time"
+	"fmt"
+)
 
 //
 // This is a non-replicated view service for a simple
@@ -32,7 +35,18 @@ import "time"
 // ensure that there's at most one p/b primary operating at
 // a time.
 //
+const Debug = 0
 
+func DPrintf(format string, a ...interface{}) (n int, err error) {
+	if Debug > 0 {
+		fmt.Printf(format, a...)
+	}
+	return
+}
+
+func ERROR(format string, a ...interface{}) {
+	fmt.Printf(format, a)
+}
 type View struct {
 	Viewnum uint
 	Primary string

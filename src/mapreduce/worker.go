@@ -1,6 +1,5 @@
 package mapreduce
 
-import "fmt"
 import "os"
 import "log"
 import "net/rpc"
@@ -56,7 +55,7 @@ func Register(master string, me string) {
 	var reply RegisterReply
 	ok := call(master, "MapReduce.Register", args, &reply)
 	if ok == false {
-		fmt.Printf("Register: RPC %s register error\n", master)
+		DPrintf("Register: RPC %s register error\n", master)
 	}
 }
 
@@ -66,7 +65,7 @@ func RunWorker(MasterAddress string, me string,
 	MapFunc func(string) *list.List,
 	ReduceFunc func(string, *list.List) string, nRPC int) {
 
-	fmt.Printf("RunWorker %s\n", me)
+	DPrintf("RunWorker %s\n", me)
 	wk := new(Worker)
 	wk.name = me
 	wk.Map = MapFunc

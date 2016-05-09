@@ -2,7 +2,6 @@ package mapreduce
 
 import (
 	"container/list"
-	"fmt"
 	"log"
 	"os"
 )
@@ -24,7 +23,7 @@ func (mr *MapReduce) KillWorkers() *list.List {
 		var reply ShutdownReply
 		ok := call(w.address, "Worker.Shutdown", args, &reply)
 		if ok == false {
-			fmt.Printf("DoWork: RPC %s shutdown error\n", w.address)
+			DPrintf("DoWork: RPC %s shutdown error\n", w.address)
 		} else {
 			l.PushBack(reply.Njobs)
 		}
@@ -62,7 +61,7 @@ func doMap(mr *MapReduce, worker chan string) {
 					 */
 					break // break the for range
 				} else {
-					fmt.Printf("No aviliable worker for Map %d\n", args.JobNumber)
+					DPrintf("No aviliable worker for Map %d\n", args.JobNumber)
 				}
 			}
 		}(i)
@@ -86,7 +85,7 @@ func doReduce(mr *MapReduce, worker chan string) {
 					worker <- avil
 					break
 				} else {
-					fmt.Printf("No useful worker for Reduce %d\n", args.JobNumber)
+					DPrintf("No useful worker for Reduce %d\n", args.JobNumber)
 				}
 			}
 		}(i)

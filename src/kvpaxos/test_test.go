@@ -2,12 +2,13 @@ package kvpaxos
 
 import (
 	"fmt"
-	//"math/rand"
+	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
 	"testing"
 	//"time"
+	"time"
 )
 
 //import "strings"
@@ -82,7 +83,6 @@ func TestBasic(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 
-	/**
 	fmt.Printf("Test: Concurrent clients ...\n")
 
 	for iters := 0; iters < 20; iters++ {
@@ -118,7 +118,6 @@ func TestBasic(t *testing.T) {
 	fmt.Printf("  ... Passed\n")
 
 	time.Sleep(1 * time.Second)
-	*/
 }
 
 /**

@@ -5,7 +5,6 @@ import "net/rpc"
 import "log"
 import "time"
 import "sync"
-import "fmt"
 import "os"
 import "sync/atomic"
 
@@ -83,11 +82,11 @@ func (vs *ViewServer) tick() {
 			delete(vs.views, kv_server)
 			if vs.Ack {
 				if kv_server == vs.currentView.Primary {
-					log.Printf("    Primary [%s] timeout kill\n", kv_server)
+					DPrintf("    Primary [%s] timeout kill\n", kv_server)
 					vs.currentView.Primary = ""
 				}
 				if kv_server == vs.currentView.Backup {
-					log.Printf("    Backup [%s] timeout kill\n", kv_server)
+					DPrintf("    Backup [%s] timeout kill\n", kv_server)
 					vs.currentView.Backup = ""
 				}
 			}
@@ -97,7 +96,7 @@ func (vs *ViewServer) tick() {
 		flag := false
 		if vs.currentView.Primary == "" && vs.currentView.Backup != "" {
 			vs.currentView.Primary = vs.currentView.Backup
-			log.Printf("    Change Backup [%s] to Primary\n", vs.currentView.Primary)
+			DPrintf("    Change Backup [%s] to Primary\n", vs.currentView.Primary)
 			vs.currentView.Backup = ""
 			flag = true
 		}
@@ -105,7 +104,7 @@ func (vs *ViewServer) tick() {
 			for kv_server, _ := range vs.views {
 				if kv_server != vs.currentView.Primary {
 					vs.currentView.Backup = kv_server
-					log.Printf("    Choose views [%s]to Backup\n", vs.currentView.Backup)
+					DPrintf("    Choose views [%s]to Backup\n", vs.currentView.Backup)
 					flag = true
 					break
 				}
@@ -173,7 +172,7 @@ func StartServer(me string) *ViewServer {
 				conn.Close()
 			}
 			if err != nil && vs.isdead() == false {
-				fmt.Printf("ViewServer(%v) accept: %v\n", me, err.Error())
+				DPrintf("ViewServer(%v) accept: %v\n", me, err.Error())
 				vs.Kill()
 			}
 		}
