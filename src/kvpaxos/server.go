@@ -45,16 +45,19 @@ func (kv *KVPaxos) waitPaxosDecided(seq int) interface{} {
 	to := 10 * time.Millisecond
 	for {
 		fate, v := kv.px.Status(seq)
-		DPrintf("[Server %d waitPaxosDecided] get fate=%v\n", kv.me, fate)
+		DPrintf("[Server %d waitPaxosDecided] Seq %d get fate=%v\n", kv.me, seq, fate)
 		if fate == paxos.Decided {
 			switch _v := v.(type) {
 			case Op:
-				DPrintf("[Server %d waitPaxosDecided] finished. value=%s\n",
-					kv.me, _v.toString())
+				DPrintf("[Server %d waitPaxosDecided] seq %d finished. value=%s\n",
+					kv.me, seq, _v.toString())
 				return v
 			default:
 				ERROR("impossible\n")
 			}
+		}else {
+			DPrintf("[Server %d waitPaxosDecided] Seq %d slepp to wait Decided\n",
+			kv.me, seq)
 		}
 		time.Sleep(to)
 		if to < 10*time.Second {
@@ -114,13 +117,16 @@ func (kv *KVPaxos) sync(op Op) {
 	for !kv.isdead() {
 		v := kv.doPaxos(op)
 		res := kv.doOp(v)
-		kv.curSeq++
 		if v.getToken() == op.getToken() {
 			DPrintf("[Server %d sync] reach the last op\n", kv.me)
+			DPrintf("[Server %d sync] Seq %d can done\n", kv.me, kv.curSeq)
+			kv.px.Done(kv.curSeq)
+			kv.curSeq++
 			DPrintf("[Server %d sync] set the ResChan v=%v\n", kv.me, res)
 			op.setResponse(res)
 			break
 		}
+		kv.curSeq++
 	}
 	DPrintf("[Server %d sync] End\n", kv.me)
 }

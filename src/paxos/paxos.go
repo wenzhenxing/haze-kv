@@ -44,6 +44,7 @@ const Debug = 0
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if Debug > 0 {
+		fmt.Printf("	")
 		fmt.Printf(format, a...)
 	}
 	return
@@ -84,7 +85,7 @@ type Paxos struct {
 	// Your data here.
 	min_instance int
 	max_instance int
-	done         int
+	done         int // initialed by -1
 	status       map[int]*Status
 }
 
@@ -450,6 +451,10 @@ func (px *Paxos) Start(seq int, v interface{}) {
 				DPrintf("[Instance %v][Paxos %v]Decided\n", seq, px.me)
 				return
 			}
+			if decided == Forgotten {
+				DPrintf("[Instance %v] [Paxos %v] Forgotten\n", seq, px.me)
+				return
+			}
 			time.Sleep(time.Duration(r.Intn(100)) * time.Millisecond)
 			bidding++
 		}
@@ -688,7 +693,7 @@ func Make(peers []string, me int, rpcs *rpc.Server) *Paxos {
 	// Your initialization code here.
 	px.min_instance = 0
 	px.max_instance = 0
-	px.done = 0
+	px.done = -1
 	px.status = make(map[int]*Status)
 
 	if rpcs != nil {

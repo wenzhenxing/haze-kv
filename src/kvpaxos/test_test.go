@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strconv"
 	"testing"
+	//"strings"
+	//"sync/atomic"
 	//"time"
 	"time"
 )
@@ -119,9 +121,6 @@ func TestBasic(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 }
-
-/**
-
 func TestDone(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -136,10 +135,10 @@ func TestDone(t *testing.T) {
 	for i := 0; i < nservers; i++ {
 		kva[i] = StartServer(kvh, i)
 	}
-	ck := MakeClerk(kvh)
+	ck := MakeClerk(kvh, -1)
 	var cka [nservers]*Clerk
 	for pi := 0; pi < nservers; pi++ {
-		cka[pi] = MakeClerk([]string{kvh[pi]})
+		cka[pi] = MakeClerk([]string{kvh[pi]}, pi)
 	}
 
 	fmt.Printf("Test: server frees Paxos log memory...\n")
@@ -153,6 +152,7 @@ func TestDone(t *testing.T) {
 	// rtm's m0.Alloc is 2 MB
 
 	sz := 1000000
+	//sz := 10
 	items := 10
 
 	for iters := 0; iters < 2; iters++ {
@@ -166,6 +166,7 @@ func TestDone(t *testing.T) {
 			check(t, cka[i%nservers], key, string(value))
 		}
 	}
+
 
 	// Put and Get to each of the replicas, in case
 	// the Done information is piggybacked on
@@ -190,10 +191,10 @@ func TestDone(t *testing.T) {
 	if m1.Alloc > allowed {
 		t.Fatalf("Memory use did not shrink enough (Used: %v, allowed: %v).\n", m1.Alloc, allowed)
 	}
-
 	fmt.Printf("  ... Passed\n")
 }
 
+/**
 func pp(tag string, src int, dst int) string {
 	s := "/var/tmp/824-"
 	s += strconv.Itoa(os.Getuid()) + "/"
