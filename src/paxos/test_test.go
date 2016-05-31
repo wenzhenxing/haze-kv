@@ -755,7 +755,6 @@ func part(t *testing.T, tag string, npaxos int, p1 []int, p2 []int, p3 []int) {
 	}
 }
 
-/*
 func TestPartition(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
@@ -854,7 +853,6 @@ func TestPartition(t *testing.T) {
 
 	fmt.Printf("  ... Passed\n")
 }
-*/
 
 func TestLots(t *testing.T) {
 	runtime.GOMAXPROCS(4)

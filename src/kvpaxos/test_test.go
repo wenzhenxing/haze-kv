@@ -10,6 +10,8 @@ import (
 	//"strings"
 	//"sync/atomic"
 	//"time"
+	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -167,7 +169,6 @@ func TestDone(t *testing.T) {
 		}
 	}
 
-
 	// Put and Get to each of the replicas, in case
 	// the Done information is piggybacked on
 	// the Paxos proposer messages.
@@ -194,7 +195,6 @@ func TestDone(t *testing.T) {
 	fmt.Printf("  ... Passed\n")
 }
 
-/**
 func pp(tag string, src int, dst int) string {
 	s := "/var/tmp/824-"
 	s += strconv.Itoa(os.Getuid()) + "/"
@@ -257,7 +257,7 @@ func TestPartition(t *testing.T) {
 
 	var cka [nservers]*Clerk
 	for i := 0; i < nservers; i++ {
-		cka[i] = MakeClerk([]string{port(tag, i)})
+		cka[i] = MakeClerk([]string{port(tag, i)}, i)
 	}
 
 	fmt.Printf("Test: No partition ...\n")
@@ -343,7 +343,7 @@ func randclerk(kvh []string) *Clerk {
 		j := rand.Intn(i + 1)
 		sa[i], sa[j] = sa[j], sa[i]
 	}
-	return MakeClerk(sa)
+	return MakeClerk(sa, -1)
 }
 
 // check that all known appends are present in a value,
@@ -386,10 +386,10 @@ func TestUnreliable(t *testing.T) {
 		kva[i].setunreliable(true)
 	}
 
-	ck := MakeClerk(kvh)
+	ck := MakeClerk(kvh, -1)
 	var cka [nservers]*Clerk
 	for i := 0; i < nservers; i++ {
-		cka[i] = MakeClerk([]string{kvh[i]})
+		cka[i] = MakeClerk([]string{kvh[i]}, i)
 	}
 
 	fmt.Printf("Test: Basic put/get, unreliable ...\n")
@@ -407,8 +407,8 @@ func TestUnreliable(t *testing.T) {
 
 	fmt.Printf("Test: Sequence of puts, unreliable ...\n")
 
-	for iters := 0; iters < 6; iters++ {
-		const ncli = 5
+	for iters := 0; iters < 1; iters++ {
+		const ncli = 1
 		var ca [ncli]chan bool
 		for cli := 0; cli < ncli; cli++ {
 			ca[cli] = make(chan bool)
@@ -426,6 +426,7 @@ func TestUnreliable(t *testing.T) {
 				vv = NextValue(vv, "2")
 				time.Sleep(100 * time.Millisecond)
 				if myck.Get(key) != vv {
+					check(t, myck, key, vv)
 					t.Fatalf("wrong value")
 				}
 				if myck.Get(key) != vv {
@@ -552,7 +553,7 @@ func TestHole(t *testing.T) {
 	for iters := 0; iters < 5; iters++ {
 		part(t, tag, nservers, []int{0, 1, 2, 3, 4}, []int{}, []int{})
 
-		ck2 := MakeClerk([]string{port(tag, 2)})
+		ck2 := MakeClerk([]string{port(tag, 2)}, iters)
 		ck2.Put("q", "q")
 
 		done := int32(0)
@@ -565,7 +566,7 @@ func TestHole(t *testing.T) {
 				defer func() { ca[cli] <- ok }()
 				var cka [nservers]*Clerk
 				for i := 0; i < nservers; i++ {
-					cka[i] = MakeClerk([]string{port(tag, i)})
+					cka[i] = MakeClerk([]string{port(tag, i)}, xcli)
 				}
 				key := strconv.Itoa(cli)
 				last := ""
@@ -682,7 +683,7 @@ func TestManyPartition(t *testing.T) {
 				j := rand.Intn(i + 1)
 				sa[i], sa[j] = sa[j], sa[i]
 			}
-			myck := MakeClerk(sa)
+			myck := MakeClerk(sa, xcli)
 			key := strconv.Itoa(cli)
 			last := ""
 			myck.Put(key, last)
@@ -718,4 +719,3 @@ func TestManyPartition(t *testing.T) {
 		fmt.Printf("  ... Passed\n")
 	}
 }
-*/

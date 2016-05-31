@@ -16,7 +16,7 @@ func ERROR(format string, a ...interface{}) {
 	fmt.Printf(format, a)
 }
 
-func int642string(i int64)string{
+func int642string(i int64) string {
 	return strconv.FormatInt(i, 10)
 }
 

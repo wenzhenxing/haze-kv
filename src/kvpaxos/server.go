@@ -23,6 +23,7 @@ type KVPaxos struct {
 	px         *paxos.Paxos
 
 	// Your definitions here.
+	last_rpcs map[string]int
 	data   map[string]string
 	opChan chan Op
 	curSeq int
@@ -81,7 +82,7 @@ func (kv *KVPaxos) doOp(op Op) interface{} {
 			return v
 		} else {
 			DPrintf("[Server %d doOp] GetOp v= ErrNoKey\n", kv.me)
-			return ErrNoKey
+			return ""
 		}
 	case *PutOp:
 		kv.data[e.Key] = e.Value
@@ -95,9 +96,9 @@ func (kv *KVPaxos) doOp(op Op) interface{} {
 		} else {
 			kv.data[e.Key] = e.Value
 		}
-		return nil
 		DPrintf("[Server %d doOp] database update %s\n", kv.me,
 			kv.data[e.Key])
+		return nil
 	}
 	DPrintf("[Server %d doOp] finished\n", kv.me)
 	return nil
@@ -228,6 +229,7 @@ func StartServer(servers []string, me int) *KVPaxos {
 	kv.me = me
 
 	// Your initialization code here.
+	kv.last_rpcs = make(map[string]int)
 	kv.data = make(map[string]string)
 	kv.opChan = make(chan Op)
 	go kv.handleOp()
